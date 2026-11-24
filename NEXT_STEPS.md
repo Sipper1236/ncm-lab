@@ -345,8 +345,8 @@ Next actions:
   silently rewrite script contents.
 - Track recent tool state explicitly: script written, script hash, last run
   status, and whether a write happened after that run.
-- Detect repeated identical actions and stop or return a clear stuck state
-  before wasting the entire decision budget.
+- Teach the model to recover from duplicate-action feedback; the runtime guard
+  is measured on the fixed suite and stops after the next duplicate.
 - Keep the current rule that a final answer requires a successful run of the
   current script. The evaluator now checks two additional inputs and preserves
   aggregate verification results in each rollout record. Expand the report to
@@ -498,11 +498,21 @@ If a gate is missed, report the miss and keep improving the relevant stage.
 
 ## 5. Immediate next actions
 
+The repeated-action guard was evaluated against the same 203-episode manifest
+and seed43 checkpoint as the pre-guard run. It reduced model outputs from 1,315
+to 1,015. It recorded 203 repeated outputs across 102 episodes and stopped 81
+episodes after repetition, while task success stayed 73/203 and hidden checks
+stayed at zero failures. Raw valid-action rate fell from 58.63% to 54.88%, so
+the guard limits wasted turns but does not improve action quality. The full trace is in
+[`seed43_multitest_repeat_guard.jsonl`](artifacts/eval/seed43_multitest_repeat_guard.jsonl).
+
 In order:
 
-1. Improve raw action validity and reduce parser recovery; it remains below 60%
-   on the multi-input 203-episode suite for the selected checkpoint.
-2. Add a repeated-action guard before increasing the decision budget.
+1. Improve raw action validity and reduce parser recovery; it is 54.88% with
+   the guard on the multi-input 203-episode suite for the selected checkpoint.
+2. Improve recovery after duplicate-action feedback before increasing the
+   decision budget; only 12 of the 102 episodes with repeats later produced a
+   different valid action.
 3. Improve line-count and CSV traces, which remain near-zero success families;
    the first varied-line candidate did not improve count-lines success.
 4. Repeat seed comparisons after an action-format change; the third seed

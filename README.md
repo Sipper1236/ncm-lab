@@ -253,7 +253,9 @@ successfully.
   near-miss `run_script` and `final` actions, and requires a successful script
   run before accepting a final response. When an expected output is supplied,
   it also requires an exact output match and returns only a pass/fail mismatch
-  signal to the model.
+  signal to the model. Repeated identical actions are blocked after the first
+  retry; a third consecutive identical output stops the turn. The evaluator
+  reports repeated outputs separately from invalid actions and parser recovery.
 
 The earlier instruction-to-code experiment used
 [`flytech/python-codes-25k`](https://huggingface.co/datasets/flytech/python-codes-25k),

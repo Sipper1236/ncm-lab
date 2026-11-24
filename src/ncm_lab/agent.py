@@ -68,6 +68,9 @@ def run_agent(
     history: list[dict[str, str]] = []
     last_run_succeeded = False
     last_run_result: dict[str, Any] | None = None
+    last_decision_key: str | None = None
+    consecutive_repeats = 0
+    stopped_reason = "decision_budget_exhausted"
     verification_cases = getattr(args, "verification_cases", [])
     with tempfile.TemporaryDirectory(prefix="ncm-agent-") as directory:
         environment = {
@@ -111,9 +114,71 @@ def run_agent(
                 )
 
             raw = decode_bytes(token_ids)
+            action: dict[str, Any] | None = None
+            parse_error: ValueError | None = None
             try:
                 action = parse_action(raw)
             except ValueError as error:
+                parse_error = error
+
+            parser_recovered = (
+                action is not None and raw.strip() != compact_json(action)
+            )
+            decision_key = (
+                f"action:{compact_json(action)}"
+                if action is not None
+                else f"invalid:{raw.strip()}"
+            )
+            if decision_key == last_decision_key:
+                consecutive_repeats += 1
+            else:
+                last_decision_key = decision_key
+                consecutive_repeats = 0
+
+            if consecutive_repeats:
+                stopped = consecutive_repeats >= 2
+                repeat_event: dict[str, Any] = {
+                    "step": index + 1,
+                    "type": "repeated_action",
+                    "raw": raw,
+                    "action": action,
+                    "parser_invalid": parse_error is not None,
+                    "parser_recovered": parser_recovered,
+                    "repeat_count": consecutive_repeats,
+                }
+                if stopped:
+                    repeat_event["stopped"] = True
+                    stopped_reason = "repeated_action"
+                    print(
+                        f"step {index + 1}: stopping after "
+                        f"{consecutive_repeats + 1} identical outputs"
+                    )
+                else:
+                    print(
+                        f"step {index + 1}: repeated action blocked; "
+                        "asking model to recover"
+                    )
+                if trace is not None:
+                    trace.append(repeat_event)
+                if stopped:
+                    break
+                if index + 1 >= args.max_steps:
+                    print(
+                        f"step {index + 1}: repeated action blocked; "
+                        "decision budget exhausted"
+                    )
+                    break
+                history.append({"role": "assistant", "content": raw[:48]})
+                history.append(
+                    {
+                        "role": "tool:runtime",
+                        "content": compact_json({"error": "repeated_action"}),
+                    }
+                )
+                continue
+
+            if parse_error is not None:
+                error = parse_error
                 print(f"step {index + 1}: invalid action: {error}")
                 print(f"model output: {raw!r}")
                 if trace is not None:
@@ -134,6 +199,7 @@ def run_agent(
                 )
                 continue
 
+            assert action is not None
             print(f"step {index + 1} action: {compact_json(action)}")
             if trace is not None:
                 trace.append(
@@ -142,7 +208,7 @@ def run_agent(
                         "type": "action",
                         "raw": raw,
                         "action": action,
-                        "parser_recovered": raw.strip() != compact_json(action),
+                        "parser_recovered": parser_recovered,
                     }
                 )
             if "final" in action:
@@ -273,9 +339,12 @@ def run_agent(
                     }
                 )
 
-    print(f"stopped after {args.max_steps} decisions without a final answer")
+    if stopped_reason == "repeated_action":
+        print("stopped after repeated model output without a final answer")
+    else:
+        print(f"stopped after {args.max_steps} decisions without a final answer")
     if trace is not None:
-        trace.append({"type": "stopped", "reason": "decision_budget_exhausted"})
+        trace.append({"type": "stopped", "reason": stopped_reason})
     return None
 
 

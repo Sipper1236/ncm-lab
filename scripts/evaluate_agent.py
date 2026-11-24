@@ -348,9 +348,17 @@ def evaluate_episode(
         hidden_test_cases_checked = int(hidden_verification.get("case_count", 0))
     actions = [event for event in trace if event.get("type") == "action"]
     invalid_actions = [event for event in trace if event.get("type") == "invalid_action"]
-    parser_recoveries = [
-        event for event in actions if event.get("parser_recovered") is True
+    repeated_actions = [
+        event for event in trace if event.get("type") == "repeated_action"
     ]
+    parser_recoveries = [
+        event
+        for event in [*actions, *repeated_actions]
+        if event.get("parser_recovered") is True
+    ]
+    invalid_action_count = len(invalid_actions) + sum(
+        event.get("parser_invalid") is True for event in repeated_actions
+    )
     final_accepted = any(
         event.get("type") == "final" and event.get("accepted") is True
         for event in trace
@@ -383,10 +391,14 @@ def evaluate_episode(
         "task_success": exact
         and final_accepted
         and (not hidden_case_count or hidden_test_passed is True),
-        "decision_count": len(actions) + len(invalid_actions),
+        "decision_count": len(actions) + len(invalid_actions) + len(repeated_actions),
         "tool_call_count": sum("tool" in event.get("action", {}) for event in actions),
-        "invalid_action_count": len(invalid_actions),
+        "invalid_action_count": invalid_action_count,
         "parser_recovery_count": len(parser_recoveries),
+        "repeated_action_count": len(repeated_actions),
+        "repeated_action_stop_count": sum(
+            event.get("stopped") is True for event in repeated_actions
+        ),
         "elapsed_seconds": round(elapsed, 3),
         "final_text": final,
         "runtime_error": runtime_error,
@@ -457,6 +469,10 @@ def main() -> None:
     model_outputs = sum(item["decision_count"] for item in episodes)
     invalid_actions = sum(item["invalid_action_count"] for item in episodes)
     parser_recoveries = sum(item["parser_recovery_count"] for item in episodes)
+    repeated_action_count = sum(item["repeated_action_count"] for item in episodes)
+    repeated_action_stop_count = sum(
+        item["repeated_action_stop_count"] for item in episodes
+    )
     per_family: dict[str, dict[str, int]] = {}
     for episode in episodes:
         row = per_family.setdefault(
@@ -507,6 +523,11 @@ def main() -> None:
         ),
         "invalid_actions": invalid_actions,
         "parser_recoveries": parser_recoveries,
+        "repeated_action_count": repeated_action_count,
+        "repeated_action_stop_count": repeated_action_stop_count,
+        "episodes_with_repeated_actions": sum(
+            item["repeated_action_count"] > 0 for item in episodes
+        ),
         "repair_episodes": sum(item["repair"] for item in episodes),
         "per_family": per_family,
         "output": str(output_path),
