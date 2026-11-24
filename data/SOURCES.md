@@ -3,11 +3,17 @@
 ## Synthetic coding-agent traces
 
 `scripts/prepare_agent_pairs.py` creates local synthetic episodes for nine
-short Python script tasks. Most episodes write and run a new script; the rest
-start with an existing faulty script that the agent runs, repairs, and reruns.
-The expected actions and observations are derived by running the scripts
-through the project's isolated Python tool. No external agent-trace corpus or
-model-generated teacher outputs are used.
+short Python script tasks. It varies prompt wording and input cases, includes
+faulty-script repair trajectories, and adds compact invalid-action recovery
+examples. The expected actions and observations are derived by running the
+scripts through the project's isolated Python tool. No external agent-trace
+corpus or model-generated teacher outputs are used.
+
+`agent_eval_manifest*.jsonl` files are separate fixed sets of prompt/input
+cases with expected stdout for end-to-end evaluation. Corpus generation
+reserves the small baseline manifest; larger manifests are created from input
+cases verified absent from the corpus so the evaluator can compare checkpoints
+without leaking test inputs into training.
 
 ## Earlier instruction-to-code corpus
 

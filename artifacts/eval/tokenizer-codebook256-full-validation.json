@@ -1,0 +1,337 @@
+{
+  "tokenizer_sha256": "e1425a369b989ae2183a19bbc6c5ace9761878b837f7d5f93bd1f19627313079",
+  "data_sha256": "b3f6a451e840d025b85b5ad3fce383d451a47d1b714468909f46b5742a6280fa",
+  "device": "AMD Radeon RX 580 2048SP (RADV POLARIS10)",
+  "validation_pairs_available": 1520,
+  "pairs_evaluated": 1520,
+  "tokenizer_config": {
+    "seq_len": 256,
+    "levels": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32,
+      64,
+      128,
+      192,
+      256
+    ],
+    "latent_dim": 64,
+    "codebook_size": 256,
+    "vocab_size": 259,
+    "decoder_layers": 2,
+    "heads": 4
+  },
+  "levels": [
+    {
+      "level": 0,
+      "examples": 1520,
+      "exact_reconstructions": 0,
+      "exact_rate": 0.0,
+      "expected_bytes": 99784,
+      "aligned_byte_accuracy": 0.0269,
+      "length_mismatches": 1520,
+      "mismatches_by_expected_class": {
+        "punctuation": 18696,
+        "letter": 64512,
+        "other": 1384,
+        "missing": 0,
+        "extra": 289336,
+        "whitespace": 4608,
+        "digit": 136
+      }
+    },
+    {
+      "level": 1,
+      "examples": 1520,
+      "exact_reconstructions": 0,
+      "exact_rate": 0.0,
+      "expected_bytes": 99784,
+      "aligned_byte_accuracy": 0.0193,
+      "length_mismatches": 1520,
+      "mismatches_by_expected_class": {
+        "punctuation": 24824,
+        "letter": 61448,
+        "other": 1384,
+        "missing": 0,
+        "extra": 282952,
+        "whitespace": 4608,
+        "digit": 136
+      }
+    },
+    {
+      "level": 2,
+      "examples": 1520,
+      "exact_reconstructions": 0,
+      "exact_rate": 0.0,
+      "expected_bytes": 99784,
+      "aligned_byte_accuracy": 0.0211,
+      "length_mismatches": 1520,
+      "mismatches_by_expected_class": {
+        "punctuation": 23968,
+        "letter": 61800,
+        "other": 1384,
+        "missing": 0,
+        "extra": 283904,
+        "whitespace": 4384,
+        "digit": 136
+      }
+    },
+    {
+      "level": 3,
+      "examples": 1520,
+      "exact_reconstructions": 0,
+      "exact_rate": 0.0,
+      "expected_bytes": 99784,
+      "aligned_byte_accuracy": 0.0282,
+      "length_mismatches": 1520,
+      "mismatches_by_expected_class": {
+        "punctuation": 27944,
+        "letter": 59680,
+        "other": 1384,
+        "missing": 0,
+        "extra": 133008,
+        "whitespace": 4072,
+        "digit": 136
+      }
+    },
+    {
+      "level": 4,
+      "examples": 1520,
+      "exact_reconstructions": 0,
+      "exact_rate": 0.0,
+      "expected_bytes": 99784,
+      "aligned_byte_accuracy": 0.0599,
+      "length_mismatches": 1520,
+      "mismatches_by_expected_class": {
+        "punctuation": 24672,
+        "letter": 58464,
+        "other": 1384,
+        "missing": 0,
+        "extra": 108144,
+        "whitespace": 2664,
+        "digit": 136
+      }
+    },
+    {
+      "level": 5,
+      "examples": 1520,
+      "exact_reconstructions": 0,
+      "exact_rate": 0.0,
+      "expected_bytes": 99784,
+      "aligned_byte_accuracy": 0.1102,
+      "length_mismatches": 1520,
+      "mismatches_by_expected_class": {
+        "punctuation": 23648,
+        "letter": 53896,
+        "missing": 0,
+        "extra": 57752,
+        "other": 736,
+        "whitespace": 4000,
+        "digit": 136
+      }
+    },
+    {
+      "level": 6,
+      "examples": 1520,
+      "exact_reconstructions": 0,
+      "exact_rate": 0.0,
+      "expected_bytes": 99784,
+      "aligned_byte_accuracy": 0.1746,
+      "length_mismatches": 1520,
+      "mismatches_by_expected_class": {
+        "punctuation": 18184,
+        "letter": 42352,
+        "other": 808,
+        "missing": 0,
+        "extra": 98112,
+        "whitespace": 3752,
+        "digit": 136
+      }
+    },
+    {
+      "level": 7,
+      "examples": 1520,
+      "exact_reconstructions": 0,
+      "exact_rate": 0.0,
+      "expected_bytes": 99784,
+      "aligned_byte_accuracy": 0.6956,
+      "length_mismatches": 872,
+      "mismatches_by_expected_class": {
+        "punctuation": 7864,
+        "letter": 16448,
+        "missing": 0,
+        "extra": 6776,
+        "other": 200,
+        "whitespace": 1072,
+        "digit": 80
+      }
+    },
+    {
+      "level": 8,
+      "examples": 1520,
+      "exact_reconstructions": 0,
+      "exact_rate": 0.0,
+      "expected_bytes": 99784,
+      "aligned_byte_accuracy": 0.9048,
+      "length_mismatches": 208,
+      "mismatches_by_expected_class": {
+        "punctuation": 3104,
+        "letter": 4920,
+        "missing": 0,
+        "extra": 856,
+        "whitespace": 664,
+        "other": 32
+      }
+    },
+    {
+      "level": 9,
+      "examples": 1520,
+      "exact_reconstructions": 1160,
+      "exact_rate": 0.7632,
+      "expected_bytes": 99784,
+      "aligned_byte_accuracy": 0.9896,
+      "length_mismatches": 72,
+      "mismatches_by_expected_class": {
+        "missing": 0,
+        "extra": 72,
+        "letter": 416,
+        "punctuation": 552
+      }
+    }
+  ],
+  "codebook_usage": [
+    {
+      "level": 0,
+      "positions": 1520,
+      "active_codes": 1,
+      "codebook_size": 256,
+      "entropy_bits": -0.0,
+      "perplexity": 1.0
+    },
+    {
+      "level": 1,
+      "positions": 3040,
+      "active_codes": 11,
+      "codebook_size": 256,
+      "entropy_bits": 1.6525,
+      "perplexity": 3.1438
+    },
+    {
+      "level": 2,
+      "positions": 6080,
+      "active_codes": 15,
+      "codebook_size": 256,
+      "entropy_bits": 2.8917,
+      "perplexity": 7.4216
+    },
+    {
+      "level": 3,
+      "positions": 12160,
+      "active_codes": 31,
+      "codebook_size": 256,
+      "entropy_bits": 3.52,
+      "perplexity": 11.4716
+    },
+    {
+      "level": 4,
+      "positions": 24320,
+      "active_codes": 49,
+      "codebook_size": 256,
+      "entropy_bits": 4.6381,
+      "perplexity": 24.9011
+    },
+    {
+      "level": 5,
+      "positions": 48640,
+      "active_codes": 74,
+      "codebook_size": 256,
+      "entropy_bits": 4.9834,
+      "perplexity": 31.6328
+    },
+    {
+      "level": 6,
+      "positions": 97280,
+      "active_codes": 121,
+      "codebook_size": 256,
+      "entropy_bits": 5.6248,
+      "perplexity": 49.343
+    },
+    {
+      "level": 7,
+      "positions": 194560,
+      "active_codes": 159,
+      "codebook_size": 256,
+      "entropy_bits": 6.1922,
+      "perplexity": 73.1197
+    },
+    {
+      "level": 8,
+      "positions": 291840,
+      "active_codes": 177,
+      "codebook_size": 256,
+      "entropy_bits": 6.4817,
+      "perplexity": 89.3672
+    },
+    {
+      "level": 9,
+      "positions": 389120,
+      "active_codes": 199,
+      "codebook_size": 256,
+      "entropy_bits": 6.7166,
+      "perplexity": 105.1708
+    }
+  ],
+  "full_depth_mismatch_examples": [
+    {
+      "expected": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(float,sys.stdin.read().split()));print(sum(v)/len(v))\"}}",
+      "actual": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(flott,sys.stdin.read().split());;pritt(sum(v)/len(v))\"p}"
+    },
+    {
+      "expected": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(float,sys.stdin.read().split()));print(sum(v)/len(v))\"}}",
+      "actual": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(flott,sys.stdin.read().split());;pritt(sum(v)/len(v))\"p}"
+    },
+    {
+      "expected": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(float,sys.stdin.read().split()));print(sum(v)/len(v))\"}}",
+      "actual": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(flott,sys.stdin.read().split());;pritt(sum(v)/len(v))\"p}"
+    },
+    {
+      "expected": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(float,sys.stdin.read().split()));print(sum(v)/len(v))\"}}",
+      "actual": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(flott,sys.stdin.read().split());;pritt(sum(v)/len(v))\"p}"
+    },
+    {
+      "expected": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(float,sys.stdin.read().split()));print(sum(v)/len(v))\"}}",
+      "actual": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(flott,sys.stdin.read().split());;pritt(sum(v)/len(v))\"p}"
+    },
+    {
+      "expected": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(float,sys.stdin.read().split()));print(sum(v)/len(v))\"}}",
+      "actual": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(flott,sys.stdin.read().split());;pritt(sum(v)/len(v))\"p}"
+    },
+    {
+      "expected": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(float,sys.stdin.read().split()));print(sum(v)/len(v))\"}}",
+      "actual": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(flott,sys.stdin.read().split());;pritt(sum(v)/len(v))\"p}"
+    },
+    {
+      "expected": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(float,sys.stdin.read().split()));print(sum(v)/len(v))\"}}",
+      "actual": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(flott,sys.stdin.read().split());;pritt(sum(v)/len(v))\"p}"
+    },
+    {
+      "expected": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;print(*sorted(set(map(int,sys.stdin.read().split()))),sep=\\\"\\\\n\\\")\"}}",
+      "actual": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;print(*sorted(set(map(int,sys.stdin.read().split()))),ssp=\\\"\\\\n\\\")\"}}"
+    },
+    {
+      "expected": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;print(*sorted(set(map(int,sys.stdin.read().split()))),sep=\\\"\\\\n\\\")\"}}",
+      "actual": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;print(*sorted(set(map(int,sys.stdin.read().split()))),ssp=\\\"\\\\n\\\")\"}}"
+    },
+    {
+      "expected": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;print(*sorted(set(map(int,sys.stdin.read().split()))),sep=\\\"\\\\n\\\")\"}}",
+      "actual": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;print(*sorted(set(map(int,sys.stdin.read().split()))),ssp=\\\"\\\\n\\\")\"}}"
+    },
+    {
+      "expected": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;print(*sorted(set(map(int,sys.stdin.read().split()))),sep=\\\"\\\\n\\\")\"}}",
+      "actual": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;print(*sorted(set(map(int,sys.stdin.read().split()))),ssp=\\\"\\\\n\\\")\"}}"
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import argparse
 import json
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import torch
 
@@ -35,7 +36,10 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def run_agent(args: argparse.Namespace) -> str | None:
+def run_agent(
+    args: argparse.Namespace,
+    trace: list[dict[str, Any]] | None = None,
+) -> str | None:
     if len(args.stdin.encode("utf-8")) > 100:
         raise SystemExit("--stdin is limited to 100 UTF-8 bytes")
     if len(args.initial_script.encode("utf-8")) > 160:
@@ -96,27 +100,71 @@ def run_agent(args: argparse.Namespace) -> str | None:
             except ValueError as error:
                 print(f"step {index + 1}: invalid action: {error}")
                 print(f"model output: {raw!r}")
-                history.append({"role": "assistant", "content": raw})
+                if trace is not None:
+                    trace.append(
+                        {
+                            "step": index + 1,
+                            "type": "invalid_action",
+                            "raw": raw,
+                            "error": str(error),
+                        }
+                    )
+                history.append({"role": "assistant", "content": raw[:48]})
                 history.append(
                     {
                         "role": "tool:runtime",
-                        "content": compact_json(
-                            {"error": "invalid_action", "detail": str(error)}
-                        ),
+                        "content": compact_json({"error": "invalid_action"}),
                     }
                 )
                 continue
 
             print(f"step {index + 1} action: {compact_json(action)}")
+            if trace is not None:
+                trace.append(
+                    {
+                        "step": index + 1,
+                        "type": "action",
+                        "raw": raw,
+                        "action": action,
+                        "parser_recovered": raw.strip() != compact_json(action),
+                    }
+                )
             if "final" in action:
                 if not last_run_succeeded:
                     print("final rejected: no successful run of the current script")
+                    if trace is not None:
+                        trace.append(
+                            {
+                                "step": index + 1,
+                                "type": "final_rejected",
+                                "reason": "no_successful_current_script_run",
+                            }
+                        )
                     return None
                 print(f"final: {action['final']}")
+                if trace is not None:
+                    trace.append(
+                        {"step": index + 1, "type": "final", "accepted": True}
+                    )
                 return action["final"]
 
             result = execute_tool(action["tool"], action["args"], environment)
             print(f"step {index + 1} observation: {compact_json(result)}")
+            if trace is not None:
+                observation: dict[str, Any] = {
+                    "step": index + 1,
+                    "type": "observation",
+                    "tool": action["tool"],
+                    "result": result,
+                }
+                if action["tool"] == "run_script":
+                    script_path = environment["workdir"] / "main.py"
+                    observation["script"] = (
+                        script_path.read_text(encoding="utf-8")
+                        if script_path.is_file()
+                        else None
+                    )
+                trace.append(observation)
             if action["tool"] == "write_script":
                 last_run_succeeded = False
             elif action["tool"] == "run_script":
@@ -142,6 +190,8 @@ def run_agent(args: argparse.Namespace) -> str | None:
             )
 
     print(f"stopped after {args.max_steps} decisions without a final answer")
+    if trace is not None:
+        trace.append({"type": "stopped", "reason": "decision_budget_exhausted"})
     return None
 
 

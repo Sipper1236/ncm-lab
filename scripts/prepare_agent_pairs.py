@@ -20,46 +20,91 @@ TASKS = {
         "Write a Python script that prints the number of non-empty input lines.",
         "Create a Python script to count nonblank lines from standard input.",
         "Read stdin and report how many lines contain non-whitespace text.",
+        "Count non-empty lines from stdin and print the count.",
+        "How many input lines contain text? Read them from stdin and print the number.",
+        "Write a script that ignores blank or whitespace-only lines and counts the rest.",
+        "Use Python to count lines with at least one non-space character.",
+        "Print the number of nonblank lines in the input text.",
     ],
     "sum_numbers": [
         "Write a Python script that reads integers from stdin and prints their sum.",
         "Create a script to total the whitespace-separated input integers.",
         "Read the numbers from standard input and print their sum using Python.",
+        "Add all integers from stdin and output the total.",
+        "Write a program that sums the numbers in the input text.",
+        "Read whitespace-separated integer values and print their sum.",
+        "Calculate the total of every input integer, then print it.",
+        "Create a Python script to add the integers supplied on standard input.",
     ],
     "count_words": [
         "Write a Python script that prints the number of words in stdin.",
         "Count whitespace-separated words from standard input and print the count.",
         "Create a script to report how many words the input contains.",
+        "Write a Python script that counts words in stdin.",
+        "Read text from standard input and print how many words it has.",
+        "Count the words in the input text and output the number.",
+        "How many whitespace-separated words were provided? Print the count.",
+        "Create a Python program that counts the words supplied on stdin.",
     ],
     "sort_numbers": [
         "Write a Python script that sorts input integers, printing one per line.",
         "Sort the whitespace-separated integers from stdin in ascending order.",
         "Create a script that reads numbers and prints them sorted on separate lines.",
+        "Read integers from stdin, sort them smallest to largest, and print them.",
+        "Output the input numbers in ascending numeric order, one on each line.",
+        "Write a Python program to sort all supplied integers in increasing order.",
+        "Sort the numbers in the input text and print the sorted list.",
+        "Put the stdin integers in order and print one value per line.",
     ],
     "reverse_lines": [
         "Write a Python script that reverses each input line and prints the results.",
         "Reverse the characters on every stdin line using Python.",
         "Create a script that prints each input line backwards, preserving line order.",
+        "For every line from stdin, reverse its characters and print it.",
+        "Read all lines and output each one with its text reversed.",
+        "Reverse each line separately; keep the lines in their original order.",
+        "Write a program that flips the characters in every input line.",
+        "Print each input line backwards without changing their order.",
     ],
     "mean_numbers": [
         "Write a Python script that prints the mean of the numbers read from stdin.",
         "Read whitespace-separated values and calculate their arithmetic average.",
         "Create a script to print the average of the input numbers.",
+        "Compute the arithmetic mean of all numbers from standard input.",
+        "Read the input values and print their average.",
+        "Add the stdin numbers and divide by how many there are; print the result.",
+        "Write a Python program that outputs the mean of the supplied values.",
+        "Calculate and print the average of the whitespace-separated numbers.",
     ],
     "csv_total": [
         "Read CSV from stdin with a header and an amount column; print the amount total.",
         "Write a Python script to sum the amount column in a CSV table with headers.",
         "Sum the CSV amount values from standard input, skipping the header row.",
+        "Add the values under the amount heading in the input CSV.",
+        "Read a headered CSV from stdin and print the sum of its amount column.",
+        "Calculate the total in the CSV column named amount; ignore the header.",
+        "Write a script that totals every data row's amount field in the CSV input.",
+        "Print the sum of CSV amounts supplied on standard input.",
     ],
     "json_max": [
         "Read a JSON object from stdin and print the largest value in its scores list.",
         "Write a script that loads JSON input and prints max(data['scores']).",
         "Find and print the maximum score from the input JSON object's scores array.",
+        "Parse the input JSON and output the highest number in scores.",
+        "Print the largest entry in the scores array from the JSON on stdin.",
+        "Read JSON data and find the maximum value in its scores field.",
+        "Write a Python script to print max of the input object's scores list.",
+        "Output the greatest score in the supplied JSON object.",
     ],
     "unique_sorted": [
         "Print unique input integers in ascending order, one number on each line.",
         "Write a script that deduplicates stdin integers and prints them sorted.",
-        "Read integers from stdin and output the sorted distinct values line by line.",
+        "Read integers from standard input and output the sorted distinct values line by line.",
+        "Remove duplicate integers from stdin, sort the rest, and print them.",
+        "Output each different input number once, in increasing order.",
+        "Create a Python program that prints the unique numbers smallest first.",
+        "Sort the distinct whitespace-separated integers and print one per line.",
+        "Read the numbers, discard repeats, then print them in ascending order.",
     ],
 }
 
@@ -135,6 +180,49 @@ def make_case(kind: str, index: int, rng: random.Random) -> tuple[str, str]:
     return " ".join(map(str, values)), "\n"
 
 
+def load_reserved_inputs(path: Path) -> dict[str, set[str]]:
+    reserved: dict[str, set[str]] = {}
+    if not path.is_file():
+        return reserved
+    with path.open(encoding="utf-8") as stream:
+        for line_number, line in enumerate(stream, start=1):
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError as error:
+                raise ValueError(
+                    f"Invalid evaluation manifest row {line_number}: {error}"
+                ) from error
+            family = row.get("family")
+            stdin = row.get("stdin")
+            if isinstance(family, str) and isinstance(stdin, str):
+                reserved.setdefault(family, set()).add(stdin)
+    return reserved
+
+
+def build_case_bank(
+    kind: str,
+    count: int,
+    rng: random.Random,
+    reserved: set[str],
+) -> list[tuple[str, str]]:
+    bank: list[tuple[str, str]] = []
+    seen = set(reserved)
+    for case_index in range(count * 1000):
+        case = make_case(kind, case_index, rng)
+        if case[0] in seen:
+            continue
+        seen.add(case[0])
+        bank.append(case)
+        if len(bank) == count:
+            return bank
+    raise ValueError(
+        f"Could only generate {len(bank)} unique cases for {kind}; "
+        f"requested {count} with {len(reserved)} reserved inputs"
+    )
+
+
 def add_episode(
     pairs: list[dict[str, str]],
     group: str,
@@ -156,6 +244,24 @@ def add_episode(
         if len(completion.encode("utf-8")) + 1 > seq_len:
             raise ValueError(f"action exceeds output window in {group}: {completion}")
         pairs.append({"prompt": prompt, "completion": completion, "group": group})
+        if "tool" in action:
+            invalid_completion = completion.replace('"tool"', '"toop"', 1)
+        else:
+            invalid_completion = completion.replace('"final"', '"finol"', 1)
+        retry_history = [
+            *history,
+            {"role": "assistant", "content": invalid_completion[:48]},
+            {
+                "role": "tool:runtime",
+                "content": compact_json({"error": "invalid_action"}),
+            },
+        ]
+        retry_prompt = format_agent_prompt(task, retry_history, prefix_bytes)
+        if len(retry_prompt.encode("utf-8")) > prefix_bytes:
+            raise ValueError(f"retry prompt exceeds prefix window in {group}")
+        pairs.append(
+            {"prompt": retry_prompt, "completion": completion, "group": group}
+        )
         if "tool" not in action:
             return None
         if action["tool"] == "run_script":
@@ -205,15 +311,20 @@ def build_dataset(
     seed: int,
     prefix_bytes: int,
     seq_len: int,
+    cases_per_task: int,
+    reserved_inputs: dict[str, set[str]],
 ) -> list[dict[str, str]]:
     rng = random.Random(seed)
     pairs: list[dict[str, str]] = []
     case_banks: dict[str, list[tuple[str, str]]] = {}
     for kind_index, kind in enumerate(TASKS):
         case_rng = random.Random(seed + 1009 * kind_index)
-        case_banks[kind] = [
-            make_case(kind, case_index, case_rng) for case_index in range(16)
-        ]
+        case_banks[kind] = build_case_bank(
+            kind,
+            cases_per_task,
+            case_rng,
+            reserved_inputs.get(kind, set()),
+        )
 
     for kind, task_templates in TASKS.items():
         for index in range(episodes_per_task):
@@ -250,11 +361,20 @@ def main() -> None:
     parser.add_argument("--episodes-per-task", type=int, default=256)
     parser.add_argument("--prefix-bytes", type=int, default=510)
     parser.add_argument("--seq-len", type=int, default=256)
+    parser.add_argument("--cases-per-task", type=int, default=64)
+    parser.add_argument(
+        "--exclude-manifest", default="data/agent_eval_manifest.jsonl"
+    )
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
-    if args.episodes_per_task < 4 or args.prefix_bytes < 128 or args.seq_len < 64:
+    if (
+        args.episodes_per_task < 4
+        or args.prefix_bytes < 128
+        or args.seq_len < 64
+        or args.cases_per_task < 4
+    ):
         raise SystemExit(
-            "Need at least 4 episodes per task, 128 prompt bytes, and 64 output bytes"
+            "Need at least 4 episodes and cases per task, 128 prompt bytes, and 64 output bytes"
         )
 
     pairs = build_dataset(
@@ -262,6 +382,8 @@ def main() -> None:
         args.seed,
         args.prefix_bytes,
         args.seq_len,
+        args.cases_per_task,
+        load_reserved_inputs(Path(args.exclude_manifest)),
     )
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)

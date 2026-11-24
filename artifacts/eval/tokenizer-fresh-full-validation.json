@@ -1,0 +1,340 @@
+{
+  "tokenizer_sha256": "6aff9293a5d677a1f2b9cea783f503c7ec3ea72f77c3f6d1cf6371543eb98b16",
+  "data_sha256": "b3f6a451e840d025b85b5ad3fce383d451a47d1b714468909f46b5742a6280fa",
+  "device": "AMD Radeon RX 580 2048SP (RADV POLARIS10)",
+  "validation_pairs_available": 1520,
+  "pairs_evaluated": 1520,
+  "tokenizer_config": {
+    "seq_len": 256,
+    "levels": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32,
+      64,
+      128,
+      192,
+      256
+    ],
+    "latent_dim": 64,
+    "codebook_size": 64,
+    "vocab_size": 259,
+    "decoder_layers": 2,
+    "heads": 4
+  },
+  "levels": [
+    {
+      "level": 0,
+      "examples": 1520,
+      "exact_reconstructions": 0,
+      "exact_rate": 0.0,
+      "expected_bytes": 99784,
+      "aligned_byte_accuracy": 0.0269,
+      "length_mismatches": 1520,
+      "mismatches_by_expected_class": {
+        "punctuation": 18696,
+        "letter": 64512,
+        "other": 1384,
+        "missing": 0,
+        "extra": 289336,
+        "whitespace": 4608,
+        "digit": 136
+      }
+    },
+    {
+      "level": 1,
+      "examples": 1520,
+      "exact_reconstructions": 0,
+      "exact_rate": 0.0,
+      "expected_bytes": 99784,
+      "aligned_byte_accuracy": 0.0247,
+      "length_mismatches": 1520,
+      "mismatches_by_expected_class": {
+        "punctuation": 20416,
+        "letter": 64000,
+        "other": 1384,
+        "missing": 0,
+        "extra": 274800,
+        "whitespace": 4608,
+        "digit": 136
+      }
+    },
+    {
+      "level": 2,
+      "examples": 1520,
+      "exact_reconstructions": 0,
+      "exact_rate": 0.0,
+      "expected_bytes": 99784,
+      "aligned_byte_accuracy": 0.0345,
+      "length_mismatches": 1520,
+      "mismatches_by_expected_class": {
+        "missing": 19432,
+        "extra": 50360,
+        "punctuation": 18912,
+        "letter": 50720,
+        "other": 792,
+        "whitespace": 4608,
+        "digit": 136
+      }
+    },
+    {
+      "level": 3,
+      "examples": 1520,
+      "exact_reconstructions": 0,
+      "exact_rate": 0.0,
+      "expected_bytes": 99784,
+      "aligned_byte_accuracy": 0.0437,
+      "length_mismatches": 1520,
+      "mismatches_by_expected_class": {
+        "punctuation": 28864,
+        "letter": 59760,
+        "other": 1384,
+        "missing": 0,
+        "extra": 50728,
+        "whitespace": 3056,
+        "digit": 136
+      }
+    },
+    {
+      "level": 4,
+      "examples": 1520,
+      "exact_reconstructions": 0,
+      "exact_rate": 0.0,
+      "expected_bytes": 99784,
+      "aligned_byte_accuracy": 0.0815,
+      "length_mismatches": 1520,
+      "mismatches_by_expected_class": {
+        "punctuation": 27128,
+        "letter": 59056,
+        "other": 1384,
+        "missing": 0,
+        "extra": 20800,
+        "whitespace": 2248,
+        "digit": 136
+      }
+    },
+    {
+      "level": 5,
+      "examples": 1520,
+      "exact_reconstructions": 0,
+      "exact_rate": 0.0,
+      "expected_bytes": 99784,
+      "aligned_byte_accuracy": 0.1519,
+      "length_mismatches": 1520,
+      "mismatches_by_expected_class": {
+        "punctuation": 24872,
+        "letter": 54904,
+        "other": 1304,
+        "missing": 0,
+        "extra": 14416,
+        "whitespace": 1224,
+        "digit": 136
+      }
+    },
+    {
+      "level": 6,
+      "examples": 1520,
+      "exact_reconstructions": 0,
+      "exact_rate": 0.0,
+      "expected_bytes": 99784,
+      "aligned_byte_accuracy": 0.1997,
+      "length_mismatches": 1520,
+      "mismatches_by_expected_class": {
+        "punctuation": 20000,
+        "letter": 50488,
+        "other": 1240,
+        "missing": 0,
+        "extra": 34992,
+        "whitespace": 1008,
+        "digit": 136
+      }
+    },
+    {
+      "level": 7,
+      "examples": 1520,
+      "exact_reconstructions": 0,
+      "exact_rate": 0.0,
+      "expected_bytes": 99784,
+      "aligned_byte_accuracy": 0.4197,
+      "length_mismatches": 1152,
+      "mismatches_by_expected_class": {
+        "punctuation": 9920,
+        "letter": 24256,
+        "missing": 0,
+        "extra": 53248,
+        "other": 424,
+        "whitespace": 824,
+        "digit": 136
+      }
+    },
+    {
+      "level": 8,
+      "examples": 1520,
+      "exact_reconstructions": 0,
+      "exact_rate": 0.0,
+      "expected_bytes": 99784,
+      "aligned_byte_accuracy": 0.8825,
+      "length_mismatches": 0,
+      "mismatches_by_expected_class": {
+        "letter": 8328,
+        "missing": 0,
+        "extra": 0,
+        "punctuation": 2928,
+        "other": 184,
+        "whitespace": 288
+      }
+    },
+    {
+      "level": 9,
+      "examples": 1520,
+      "exact_reconstructions": 712,
+      "exact_rate": 0.4684,
+      "expected_bytes": 99784,
+      "aligned_byte_accuracy": 0.9751,
+      "length_mismatches": 0,
+      "mismatches_by_expected_class": {
+        "missing": 0,
+        "extra": 0,
+        "letter": 1096,
+        "other": 88,
+        "punctuation": 1128,
+        "whitespace": 112,
+        "digit": 56
+      }
+    }
+  ],
+  "codebook_usage": [
+    {
+      "level": 0,
+      "positions": 1520,
+      "active_codes": 1,
+      "codebook_size": 64,
+      "entropy_bits": -0.0,
+      "perplexity": 1.0
+    },
+    {
+      "level": 1,
+      "positions": 3040,
+      "active_codes": 9,
+      "codebook_size": 64,
+      "entropy_bits": 1.5623,
+      "perplexity": 2.9532
+    },
+    {
+      "level": 2,
+      "positions": 6080,
+      "active_codes": 17,
+      "codebook_size": 64,
+      "entropy_bits": 3.2462,
+      "perplexity": 9.4884
+    },
+    {
+      "level": 3,
+      "positions": 12160,
+      "active_codes": 24,
+      "codebook_size": 64,
+      "entropy_bits": 3.7269,
+      "perplexity": 13.2403
+    },
+    {
+      "level": 4,
+      "positions": 24320,
+      "active_codes": 45,
+      "codebook_size": 64,
+      "entropy_bits": 4.6517,
+      "perplexity": 25.1365
+    },
+    {
+      "level": 5,
+      "positions": 48640,
+      "active_codes": 53,
+      "codebook_size": 64,
+      "entropy_bits": 4.7514,
+      "perplexity": 26.935
+    },
+    {
+      "level": 6,
+      "positions": 97280,
+      "active_codes": 52,
+      "codebook_size": 64,
+      "entropy_bits": 3.0229,
+      "perplexity": 8.1278
+    },
+    {
+      "level": 7,
+      "positions": 194560,
+      "active_codes": 62,
+      "codebook_size": 64,
+      "entropy_bits": 4.5671,
+      "perplexity": 23.7054
+    },
+    {
+      "level": 8,
+      "positions": 291840,
+      "active_codes": 62,
+      "codebook_size": 64,
+      "entropy_bits": 4.9282,
+      "perplexity": 30.4463
+    },
+    {
+      "level": 9,
+      "positions": 389120,
+      "active_codes": 60,
+      "codebook_size": 64,
+      "entropy_bits": 5.2018,
+      "perplexity": 36.8034
+    }
+  ],
+  "full_depth_mismatch_examples": [
+    {
+      "expected": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(float,sys.stdin.read().split()));print(sum(v)/len(v))\"}}",
+      "actual": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;==list(map(float,sys.stdin.read().split()));print(sum(v)llen(v))\"}}"
+    },
+    {
+      "expected": "{\"final\":\"Done. main.py runs successfully on the sample input.\"}",
+      "actual": "{{final\"::oone. main.py runs successfully on the sample input.\"}"
+    },
+    {
+      "expected": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(float,sys.stdin.read().split()));print(sum(v)/len(v))\"}}",
+      "actual": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;==list(map(float,sys.stdin.read().split()));print(sum(v)llen(v))\"}}"
+    },
+    {
+      "expected": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(float,sys.stdin.read().split()));print(sum(v)/len(v))\"}}",
+      "actual": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;==list(map(float,sys.stdin.read().split()));print(sum(v)llen(v))\"}}"
+    },
+    {
+      "expected": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(float,sys.stdin.read().split()));print(sum(v)/len(v))\"}}",
+      "actual": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;==list(map(float,sys.stdin.read().split()));print(sum(v)llen(v))\"}}"
+    },
+    {
+      "expected": "{\"final\":\"Done. main.py runs successfully on the sample input.\"}",
+      "actual": "{{final\"::oone. main.py runs successfully on the sample input.\"}"
+    },
+    {
+      "expected": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(float,sys.stdin.read().split()));print(sum(v)/len(v))\"}}",
+      "actual": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;==list(map(float,sys.stdin.read().split()));print(sum(v)llen(v))\"}}"
+    },
+    {
+      "expected": "{\"final\":\"Done. main.py runs successfully on the sample input.\"}",
+      "actual": "{{final\"::oone. main.py runs successfully on the sample input.\"}"
+    },
+    {
+      "expected": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;v=list(map(float,sys.stdin.read().split()));print(sum(v)/len(v))\"}}",
+      "actual": "{\"tool\":\"write_script\",\"args\":{\"code\":\"import sys;==list(map(float,sys.stdin.read().split()));print(sum(v)llen(v))\"}}"
+    },
+    {
+      "expected": "{\"final\":\"Done. main.py runs successfully on the sample input.\"}",
+      "actual": "{{final\"::oone. main.py runs successfully on the sample input.\"}"
+    },
+    {
+      "expected": "{\"final\":\"Done. main.py runs successfully on the sample input.\"}",
+      "actual": "{{final\"::oone. main.py runs successfully on the sample input.\"}"
+    },
+    {
+      "expected": "{\"final\":\"Done. main.py runs successfully on the sample input.\"}",
+      "actual": "{{final\"::oone. main.py runs successfully on the sample input.\"}"
+    }
+  ]
+}

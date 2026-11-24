@@ -141,7 +141,7 @@ def evaluate_generator(
 
 def train_tokenizer(args: argparse.Namespace, device: torch.device) -> None:
     train_data, validation_data = load_pair_datasets(
-        args.data, args.prefix_len, args.seq_len, seed=args.seed
+        args.data, args.prefix_len, args.seq_len, seed=args.split_seed
     )
     print(
         f"device={device} train_pairs={len(train_data)} "
@@ -205,7 +205,7 @@ def train_generator(args: argparse.Namespace, device: torch.device) -> None:
         "dropout": args.dropout,
     }
     train_data, validation_data = load_pair_datasets(
-        args.data, args.prefix_len, tokenizer.seq_len, seed=args.seed
+        args.data, args.prefix_len, tokenizer.seq_len, seed=args.split_seed
     )
     print(
         f"device={device} train_pairs={len(train_data)} "
@@ -325,6 +325,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--log-every", type=int, default=25)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--split-seed",
+        type=int,
+        default=42,
+        help="fixed train/validation split seed, independent of --seed",
+    )
     return parser
 
 

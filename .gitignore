@@ -10,3 +10,5 @@ data/agent_environment.json
 data/raw/
 !data/README.md
 !data/pairs.example.jsonl
+!data/agent_eval_manifest.jsonl
+!data/agent_eval_manifest_extended.jsonl

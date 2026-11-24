@@ -48,8 +48,9 @@ These facts come from the current code, data, checkpoint, and observed runs.
 - `--corruption 0.5` currently means a linearly decreasing per-level
   replacement rate from 1.0 at the coarsest level to 0.0 at the finest. The
   target labels remain clean.
-- The public corpus contains 7,488 prompt/action pairs from 2,304 synthetic
-  episodes across nine short task families. A quarter of the episodes start
+- The current generated corpus contains 14,976 prompt/action rows from 2,304
+  synthetic episodes across nine short task families. Each next-action target
+  has one compact invalid-action recovery example. A quarter of episodes start
   with a faulty script and demonstrate run, observe, repair, rerun, and finish.
 - The tasks cover line and word counts, integer sums and sorting, line reversal,
   means, CSV totals, a JSON maximum, and sorted unique integers.
@@ -81,14 +82,49 @@ Three focused inference runs succeeded on the current checkpoint:
 | Count words in `red blue green`, using the training wording | Wrote and ran the script; observed `3`; finished. |
 
 A materially different prompt, `Write a Python script that counts words in
-stdin.`, failed. The model generated a corrupted script for summing numbers,
-then attempted to run without successfully writing a script. This is direct
-evidence that familiar-template success does not establish prompt
-generalization. Treat this as a top-priority problem, not a cosmetic failure.
+stdin.`, failed on the pre-expansion checkpoint. It is now included in the
+expanded corpus, and the follow-up checkpoint solves the fixed user-regression
+case.
 
-The last recorded generator validation loss was 0.0041 over 64 validation
-pairs. That is teacher-forced per-level code cross-entropy. It is not an
-end-to-end success rate and cannot replace rollout evaluation.
+The rollout evaluator uses a fixed 28-episode manifest with familiar prompts,
+paraphrases, the user regression, and one repair episode per family. The
+pre-expansion checkpoint scored 7/28, with a 42.1% raw valid-action rate. The
+expanded-data checkpoint before fine-tuning also scored 7/28 (46.7% raw
+validity). Fine-tuning that checkpoint for 3,000 steps at corruption 0.5 kept
+the score at 7/28 but raised raw validity to 64.4%.
+
+A 1,500-step fine-tune at corruption 0.30, seed 42 and split seed 42, scores
+10/28 with no false finals. On a separate 84-episode manifest, it scores
+29/84 with one false final; the 0.50 baseline scores 24/84 with one false
+final. Raw valid-action rate is 57.0% versus 55.0% on that larger suite. The
+seed-43 run with the same split scores 10/28 and 27/84, but has one and four
+false finals respectively. This shows seed sensitivity, so the 0.30 seed-42
+checkpoint is the current default, while the repeatability gate
+remains open. The user's exact count-words prompt succeeds through the normal
+CLI, which logs the RX 580 and needs no `sudo`.
+
+The failed traces contain near-miss script text such as `sys.stdinnread()` and
+`neet(r)`. On the full 1,520-pair validation split, the existing tokenizer
+reconstructs 776 targets exactly (51.1%, 98.4% aligned byte accuracy). A fresh
+3,000-step tokenizer with the same 64-entry codebooks scores 712/1,520
+(46.8%). Increasing each codebook to 256 entries raises exact reconstruction
+to 1,160/1,520 (76.3%, 99.0% aligned byte accuracy). Its first 3,000-step
+generator scored 0/28 and produced one false final. After 5,000 more steps it
+scores 6/28, with 39.8% raw action validity and one false final. The
+larger-codebook generator remains an experiment despite the tokenizer's
+reconstruction improvement.
+
+A 0.15-corruption fine-tune of the 64-entry generator scored 9/28 task
+successes, with 10 exact outputs, 53.4% raw action validity, and two false
+finals. The 0.30 corruption setting is selected for the current default based
+on higher exact success and no false-final increase on the expanded manifest.
+The second seed was trained with `--split-seed 42`, which holds the split fixed
+independently of `--seed`.
+
+The earlier generator checkpoint recorded validation loss 0.0041; the expanded
+data fine-tune recorded 0.0525. These used different data splits, so the losses
+are not directly comparable. Both are teacher-forced per-level code
+cross-entropy, not end-to-end success rates.
 
 ## 3. Work in this order
 
@@ -97,6 +133,9 @@ large training run optimizing only the teacher-forced loss before building the
 rollout evaluator.
 
 ### Milestone 0 — Make local setup and device selection obvious
+
+**Status: done.** The root-owned venv was replaced with one owned by `rayyan`;
+normal-user inference logs the selected RX 580.
 
 **Goal:** anyone in the project checkout can run the model as their normal user
 and confirm which accelerator it selected.
@@ -140,13 +179,18 @@ have used the RX 580.
 
 ### Milestone 1 — Add an end-to-end rollout evaluator
 
+**Status: implemented; first baseline recorded.**
+
+The baseline manifest is committed at `data/agent_eval_manifest.jsonl`. Corpus
+generation supports `--exclude-manifest` and reserves its cases so later
+checkpoints use the same genuinely unseen inputs.
+
 **Goal:** measure whether an episode actually solves the task, including tool
 use and repair.
 
-Add a command such as `scripts/evaluate_agent.py` that runs a fixed test manifest
-through the same `run_agent` path used by the CLI. The evaluator, not the model,
-should hold expected outputs and test cases. Do not put expected answers in the
-prompt or training context unless the task explicitly supplies them.
+`scripts/evaluate_agent.py` runs episodes through the same `run_agent` path as
+the CLI. The evaluator, not the model, holds expected outputs and test cases.
+Expected answers are not put in prompts or training context.
 
 For each episode, record at least:
 
@@ -176,19 +220,25 @@ family across both familiar and paraphrased prompts. Save the exact manifest,
 checkpoint hashes, seed, device, and command with every result. Keep a fixed
 test set so training changes can be compared fairly.
 
-**Done when:** one command produces machine-readable episode results and a
-summary table; it distinguishes script execution from correct task output.
+**Done evidence:** one command produces machine-readable episode traces and a
+summary, distinguishing script execution from exact oracle output. The first
+run is small (28 episodes) and is a starting baseline, not a final benchmark.
 
 ### Milestone 2 — Measure prompt and task generalization
 
 **Goal:** fix the observed failure where “counts words” was answered with a
 sum script.
 
-The current dataset uses three paraphrase templates per family and sixteen
-sample cases per family, but it repeats the same solution pattern. The current
-group split keeps an input case together; it does not hold out whole task
-families, prompt templates, or solution patterns. A low validation loss on this
-split therefore gives weak evidence about new wording.
+The current dataset now uses eight prompt templates and 64 sample cases per
+family, but it still repeats the same solution pattern. The current group split
+keeps an input case together; it does not hold out whole task families, prompt
+templates, or solution patterns. A low validation loss on this split therefore
+gives weak evidence about new wording.
+
+**Status: expanded traces generated; retraining remains.** The exact `counts
+words` regression is now a training template. The data generator also creates
+recovery pairs where a malformed action and an `invalid_action` observation
+are followed by the intended valid action.
 
 Create explicit evaluation tiers:
 
@@ -280,10 +330,17 @@ run its tests, react to a failing test, and finish only after passing tests.
 
 ### Milestone 5 — Improve the NCM training signal
 
+**Status: diagnostics and codebook-size ablation complete; 0.30 corruption
+selected for the default, repeatability still under investigation.**
+`scripts/diagnose_tokenizer.py` reports exact-byte reconstruction after every
+level, codebook usage and entropy, and mismatch examples. On all 1,520
+validation traces, the 256-entry tokenizer improves exact reconstruction from
+51.1% to 76.3%, but its 8,000-step matching generator scores only 6/28.
+
 **Goal:** reduce errors that accumulate from coarse to fine and optimize the
 actual tool-loop objective.
 
-First add tokenizer diagnostics:
+The tokenizer diagnostics are implemented. Use them to compare:
 
 - Exact byte reconstruction at full depth and after each level.
 - Per-level codebook usage and code entropy.
@@ -383,20 +440,20 @@ If a gate is missed, report the miss and keep improving the relevant stage.
 
 In order:
 
-1. Confirm the normal-user setup using `uv sync --python 3.12 --extra vulkan`;
-   do not prefix `uv` with `sudo`.
-2. Confirm inference prints `vulkan_device=AMD Radeon RX 580 2048SP`.
-3. Add the paraphrase `Write a Python script that counts words in stdin.` to a
-   fixed evaluation manifest; the current model fails it.
-4. Implement the end-to-end evaluator with expected-output checks and parser
-   recovery counts.
-5. Run all nine task families on held-out input cases and prompt phrasings.
-6. Expand traces and train only after the evaluation report identifies the
-   failure distribution.
+1. Add varied wrong-output and syntax-error repair traces, especially for the
+   mean task, where the expanded evaluation still records false finals.
+2. Improve raw action validity; the selected checkpoint still depends on
+   parser recovery often enough that its raw rate remains low.
+3. Repeat the selected recipe on the fixed 28- and 84-episode manifests with
+   another training seed and fixed split; investigate the observed variance.
+4. Expand the evaluation suite toward 200 episodes and keep false finals at
+   zero before adding workspace tools.
+5. Retain the 256-entry tokenizer as an experiment until its matching generator
+   improves end-to-end success.
 
-Do not change the model architecture before steps 3–5. The observed failure is
-currently task interpretation and rollout reliability; a larger transformer
-would not prove that either problem was fixed.
+The larger codebook is an isolated tokenizer experiment justified by byte-exact
+reconstruction measurements. Keep generator size fixed until rollout evidence
+shows whether this tokenizer change helps the task loop.
 
 ## 6. Working commands
 
@@ -422,20 +479,33 @@ TORCHVULKAN_STRICT=1 uv run --extra vulkan ncm-agent \
   --stdin "red blue green"
 ```
 
-The current checkpoint has failed this phrasing. Keep the failure in the
-evaluation set until a new checkpoint fixes it.
+The follow-up checkpoint passed this phrasing on the frozen case. Keep it in
+the evaluation set as a regression check; this single success does not establish
+generalization.
 
 ### Rebuild the current synthetic corpus
 
 ```sh
 uv run python scripts/prepare_agent_pairs.py \
   --episodes-per-task 256 \
+  --cases-per-task 64 \
   --prefix-bytes 510 \
-  --seq-len 256
+  --seq-len 256 \
+  --exclude-manifest data/agent_eval_manifest.jsonl
 ```
 
 Do not replace the committed evaluation manifest when regenerating training
-data. Train, validation, and test manifests should be separate and hashed.
+data. It contains the exact same episode inputs used by baseline and follow-up
+checkpoints.
+
+### Run the fixed rollout evaluation
+
+```sh
+TORCHVULKAN_STRICT=1 uv run --extra vulkan python scripts/evaluate_agent.py \
+  --device vulkan \
+  --manifest data/agent_eval_manifest.jsonl \
+  --output artifacts/eval/rollouts.jsonl
+```
 
 ## 7. Reference material
 

@@ -42,18 +42,22 @@ Create synthetic, multi-step Python coding traces:
 ```sh
 uv run python scripts/prepare_agent_pairs.py \
   --episodes-per-task 256 \
+  --cases-per-task 64 \
   --prefix-bytes 510 \
-  --seq-len 256
+  --seq-len 256 \
+  --exclude-manifest data/agent_eval_manifest.jsonl
 ```
 
 The corpus covers nine short script tasks: count non-empty lines, sum or sort
 numbers, count words, reverse lines, compute a mean, sum a CSV column, find a
-maximum in JSON, and deduplicate numbers. Three quarters of the episodes ask
-for a new script. The rest provide a faulty existing script; the agent runs it,
-uses its error or wrong output to choose a fix, and runs the corrected script.
-The corpus builder executes examples in the same tool implementation used at
-inference. All episodes are synthetic and generated locally; no downloaded
-agent-trace dataset is used.
+maximum in JSON, and deduplicate numbers. Each family has eight prompt
+templates and 64 sample inputs. Three quarters of the 2,304 episodes ask for a
+new script. The rest provide a faulty existing script; the agent runs it, uses
+its error or wrong output to choose a fix, and runs the corrected script. Each
+next-action target also has a compact invalid-action recovery example, giving
+14,976 prompt/action rows. The corpus builder executes examples in the same
+tool implementation used at inference. All episodes are synthetic and
+generated locally; no downloaded agent-trace dataset is used.
 
 The public branch includes the generated corpus at `data/agent_pairs.jsonl`
 and trained prototype checkpoints under `artifacts/agent/`. They use this
@@ -72,6 +76,39 @@ The runner needs Bubblewrap (`bwrap`) and Linux user namespaces. It runs Python
 with network disabled, system files read-only, only a temporary script
 directory writable, a short timeout, and memory/file limits. The script
 interface has no shell, arbitrary path, or package installation tool.
+
+## Evaluate end-to-end behavior
+
+Run the fixed rollout evaluator, including in-training prompts, paraphrases,
+the `counts words` regression, and one repair episode per task family:
+
+```sh
+TORCHVULKAN_STRICT=1 uv run --extra vulkan python scripts/evaluate_agent.py \
+  --device vulkan \
+  --manifest data/agent_eval_manifest.jsonl \
+  --output artifacts/eval/rollouts.jsonl
+```
+
+It generates test inputs absent from the training corpus, checks stdout against
+independent task oracles, and records action validity, parser recoveries,
+repairs, checkpoint hashes, and full traces. Increase `--cases-per-family` for
+more coverage by choosing a new `--manifest` path. The committed expanded
+manifest at `data/agent_eval_manifest_extended.jsonl` contains 84 episodes and
+supports direct checkpoint comparisons. The rollout score, not teacher-forced
+loss by itself, is the main quality signal.
+
+Measure the tokenizer separately before spending more generator training:
+
+```sh
+TORCHVULKAN_STRICT=1 uv run --extra vulkan python scripts/diagnose_tokenizer.py \
+  --device vulkan \
+  --max-pairs 1520 \
+  --output artifacts/eval/tokenizer-diagnostics.json
+```
+
+This reports exact byte reconstruction after every residual level, codebook
+usage and entropy, and full-depth mismatch examples across the full held-out
+split. A smaller `--max-pairs` value gives a faster diagnostic sample.
 
 ## Train both NCM stages
 
@@ -108,15 +145,21 @@ TORCHVULKAN_STRICT=1 uv run --extra vulkan python -m ncm_lab.train \
   --seq-len 256 \
   --generator-width 128 \
   --generator-layers 2 \
-  --corruption 0.5
+  --corruption 0.3 \
+  --seed 42 \
+  --split-seed 42
 ```
 
 To continue training an existing generator with the same configuration, add
 `--resume-generator artifacts/agent/generator.pt`.
-`--corruption 0.5` applies a linearly decreasing corruption rate across levels
-to help generation tolerate mistakes in earlier codes.
-The checked-in generator received additional fine-tuning beyond this
-from-scratch baseline command.
+The corruption value applies a linearly decreasing replacement rate across
+levels, helping generation tolerate mistakes in earlier codes.
+The checked-in generator received an additional 1,500-step fine-tune at
+corruption 0.3. It scores 29/84 on the larger held-out manifest, compared with
+24/84 for the previous checkpoint. A second training seed showed lower raw
+validity and more false finals, so treat the selected checkpoint as a
+prototype. Keep `--split-seed` fixed when comparing model seeds; it controls
+the train/validation group split independently of `--seed`.
 
 ## Run the coding agent
 
