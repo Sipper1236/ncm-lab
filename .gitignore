@@ -12,3 +12,5 @@ data/raw/
 !data/pairs.example.jsonl
 !data/agent_eval_manifest.jsonl
 !data/agent_eval_manifest_extended.jsonl
+!data/agent_eval_repairs_v2.jsonl
+!data/agent_eval_repairs_203.jsonl

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from ncm_lab.agent import run_agent
-from prepare_agent_pairs import CODE, TASKS, make_case
+from prepare_agent_pairs import REPAIR_FAULTS, TASKS, make_case
 
 
 PARAPHRASES = {
@@ -43,6 +43,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--device", default="auto")
     parser.add_argument("--max-steps", type=int, default=8)
     parser.add_argument("--cases-per-family", type=int, default=1)
+    parser.add_argument(
+        "--repair-variants",
+        type=int,
+        default=1,
+        help="Number of repair fault types to include for each input.",
+    )
     parser.add_argument("--seed", type=int, default=2026)
     parser.add_argument("--families", nargs="+", choices=sorted(TASKS))
     parser.add_argument(
@@ -91,6 +97,7 @@ def build_manifest(
     seed: int,
     known: dict[str, set[str]],
     include_repairs: bool,
+    repair_variants: int,
 ) -> list[dict[str, Any]]:
     manifest: list[dict[str, Any]] = []
     for family_index, family in enumerate(families):
@@ -114,17 +121,19 @@ def build_manifest(
                     }
                 )
             if include_repairs:
-                _, faulty_script = CODE[family]
-                manifest.append(
-                    {
-                        "family": family,
-                        "variant": "repair",
-                        "task": TASKS[family][0],
-                        "stdin": stdin,
-                        "expected_stdout": expected,
-                        "initial_script": faulty_script,
-                    }
-                )
+                for fault_type, faulty_script in REPAIR_FAULTS[family][
+                    :repair_variants
+                ]:
+                    manifest.append(
+                        {
+                            "family": family,
+                            "variant": f"repair_{fault_type}",
+                            "task": TASKS[family][0],
+                            "stdin": stdin,
+                            "expected_stdout": expected,
+                            "initial_script": faulty_script,
+                        }
+                    )
     return manifest
 
 
@@ -151,7 +160,11 @@ def load_or_create_manifest(
                     rows.append(row)
         rows = [row for row in rows if row.get("family") in families]
         if args.skip_repairs:
-            rows = [row for row in rows if row.get("variant") != "repair"]
+            rows = [
+                row
+                for row in rows
+                if not str(row.get("variant", "")).startswith("repair")
+            ]
     else:
         used_inputs = {family: set(values) for family, values in training_inputs.items()}
         rows = build_manifest(
@@ -160,6 +173,7 @@ def load_or_create_manifest(
             args.seed,
             used_inputs,
             include_repairs=not args.skip_repairs,
+            repair_variants=args.repair_variants,
         )
         path.parent.mkdir(parents=True, exist_ok=True)
         metadata = {
@@ -168,6 +182,7 @@ def load_or_create_manifest(
             "cases_per_family": args.cases_per_family,
             "families": families,
             "includes_repairs": not args.skip_repairs,
+            "repair_variants": args.repair_variants,
         }
         with path.open("w", encoding="utf-8") as stream:
             stream.write(json.dumps(metadata, ensure_ascii=False) + "\n")
@@ -267,6 +282,7 @@ def evaluate_episode(
         generator=args.generator,
         task=task,
         stdin=stdin,
+        expected_stdout=expected,
         initial_script=initial_script,
         device=args.device,
         max_steps=args.max_steps,
@@ -303,6 +319,14 @@ def evaluate_episode(
         event.get("type") == "final" and event.get("accepted") is True
         for event in trace
     )
+    rejected_false_final_attempts = sum(
+        event.get("type") == "final_rejected"
+        and event.get("reason") == "expected_output_mismatch"
+        for event in trace
+    )
+    verification_failures = sum(
+        event.get("type") == "verification_failure" for event in trace
+    )
     return {
         "family": family,
         "variant": variant,
@@ -314,6 +338,8 @@ def evaluate_episode(
         "last_exit_code": exit_code,
         "exact_output": exact,
         "final_accepted": final_accepted,
+        "rejected_false_final_attempts": rejected_false_final_attempts,
+        "verification_failures": verification_failures,
         "task_success": exact and final_accepted,
         "decision_count": len(actions) + len(invalid_actions),
         "tool_call_count": sum("tool" in event.get("action", {}) for event in actions),
@@ -331,10 +357,14 @@ def main() -> None:
     args = build_parser().parse_args()
     if args.cases_per_family < 1:
         raise SystemExit("--cases-per-family must be positive")
+    if args.repair_variants < 1:
+        raise SystemExit("--repair-variants must be positive")
     if args.max_steps < 1:
         raise SystemExit("--max-steps must be positive")
 
     families = args.families or list(TASKS)
+    if any(args.repair_variants > len(REPAIR_FAULTS[family]) for family in families):
+        raise SystemExit("--repair-variants exceeds available faults for a task family")
     seen = known_inputs(Path(args.data))
     manifest_path = Path(args.manifest)
     manifest = load_or_create_manifest(manifest_path, families, args, seen)
@@ -397,6 +427,12 @@ def main() -> None:
         "finals_accepted": sum(item["final_accepted"] for item in episodes),
         "false_finals": sum(
             item["final_accepted"] and not item["exact_output"] for item in episodes
+        ),
+        "rejected_false_final_attempts": sum(
+            item["rejected_false_final_attempts"] for item in episodes
+        ),
+        "verification_failures": sum(
+            item["verification_failures"] for item in episodes
         ),
         "model_outputs": model_outputs,
         "raw_valid_action_rate": round(

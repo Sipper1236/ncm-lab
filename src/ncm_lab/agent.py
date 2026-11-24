@@ -28,6 +28,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--generator", default="artifacts/agent/generator.pt")
     parser.add_argument("--task", required=True)
     parser.add_argument("--stdin", default="", help="sample input used by run_script()")
+    parser.add_argument(
+        "--expected-stdout",
+        default=None,
+        help="Optional expected output checked by the runtime and kept out of the prompt.",
+    )
     parser.add_argument("--initial-script", default="", help="existing main.py source to debug")
     parser.add_argument("--device", default="auto")
     parser.add_argument("--max-steps", type=int, default=8)
@@ -44,6 +49,9 @@ def run_agent(
         raise SystemExit("--stdin is limited to 100 UTF-8 bytes")
     if len(args.initial_script.encode("utf-8")) > 160:
         raise SystemExit("--initial-script is limited to 160 UTF-8 bytes")
+    expected_stdout = getattr(args, "expected_stdout", None)
+    if expected_stdout is not None and len(expected_stdout.encode("utf-8")) > 80:
+        raise SystemExit("--expected-stdout is limited to 80 UTF-8 bytes")
     device = choose_device(args.device)
     if device.type == "vulkan":
         import torchvulkan
@@ -59,6 +67,7 @@ def run_agent(
 
     history: list[dict[str, str]] = []
     last_run_succeeded = False
+    last_run_result: dict[str, Any] | None = None
     with tempfile.TemporaryDirectory(prefix="ncm-agent-") as directory:
         environment = {"workdir": Path(directory), "stdin": args.stdin}
         task = args.task
@@ -131,16 +140,36 @@ def run_agent(
                 )
             if "final" in action:
                 if not last_run_succeeded:
-                    print("final rejected: no successful run of the current script")
+                    mismatch = (
+                        expected_stdout is not None
+                        and last_run_result is not None
+                        and last_run_result.get("exit_code") == 0
+                        and last_run_result.get("stdout") != expected_stdout
+                    )
+                    reason = (
+                        "expected_output_mismatch"
+                        if mismatch
+                        else "no_successful_current_script_run"
+                    )
+                    print("final rejected: current script has not passed available checks")
                     if trace is not None:
                         trace.append(
                             {
                                 "step": index + 1,
                                 "type": "final_rejected",
-                                "reason": "no_successful_current_script_run",
+                                "reason": reason,
                             }
                         )
-                    return None
+                    history.append(
+                        {"role": "assistant", "content": compact_json(action)}
+                    )
+                    history.append(
+                        {
+                            "role": "tool:runtime",
+                            "content": compact_json({"error": reason}),
+                        }
+                    )
+                    continue
                 print(f"final: {action['final']}")
                 if trace is not None:
                     trace.append(
@@ -165,10 +194,29 @@ def run_agent(
                         else None
                     )
                 trace.append(observation)
+            runtime_observation: dict[str, str] | None = None
             if action["tool"] == "write_script":
                 last_run_succeeded = False
+                last_run_result = None
             elif action["tool"] == "run_script":
+                last_run_result = result
                 last_run_succeeded = result.get("exit_code") == 0
+                if (
+                    last_run_succeeded
+                    and expected_stdout is not None
+                    and result.get("stdout") != expected_stdout
+                ):
+                    last_run_succeeded = False
+                    runtime_observation = {"error": "expected_output_mismatch"}
+                    print(f"step {index + 1} verification: expected output mismatch")
+                    if trace is not None:
+                        trace.append(
+                            {
+                                "step": index + 1,
+                                "type": "verification_failure",
+                                "reason": "expected_output_mismatch",
+                            }
+                        )
                 if not last_run_succeeded:
                     script_path = environment["workdir"] / "main.py"
                     current_script = (
@@ -188,6 +236,13 @@ def run_agent(
                     "content": compact_json(result),
                 }
             )
+            if runtime_observation is not None:
+                history.append(
+                    {
+                        "role": "tool:runtime",
+                        "content": compact_json(runtime_observation),
+                    }
+                )
 
     print(f"stopped after {args.max_steps} decisions without a final answer")
     if trace is not None:

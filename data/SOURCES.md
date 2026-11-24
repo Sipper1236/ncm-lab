@@ -4,16 +4,19 @@
 
 `scripts/prepare_agent_pairs.py` creates local synthetic episodes for nine
 short Python script tasks. It varies prompt wording and input cases, includes
-faulty-script repair trajectories, and adds compact invalid-action recovery
-examples. The expected actions and observations are derived by running the
-scripts through the project's isolated Python tool. No external agent-trace
-corpus or model-generated teacher outputs are used.
+faulty-script repair trajectories with runtime, syntax, and wrong-output faults,
+and adds compact invalid-action recovery examples. Wrong-output traces include
+a pass/fail mismatch observation without the expected value. The expected
+actions and observations are derived by running the scripts through the
+project's isolated Python tool. No external agent-trace corpus or
+model-generated teacher outputs are used.
 
-`agent_eval_manifest*.jsonl` files are separate fixed sets of prompt/input
+`agent_eval_*.jsonl` files are separate fixed sets of prompt/input
 cases with expected stdout for end-to-end evaluation. Corpus generation
 reserves the small baseline manifest; larger manifests are created from input
 cases verified absent from the corpus so the evaluator can compare checkpoints
-without leaking test inputs into training.
+without leaking test inputs into training. Expected outputs are held by the
+evaluator and runtime checker, not placed in model prompts.
 
 ## Earlier instruction-to-code corpus
 

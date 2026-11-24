@@ -53,11 +53,14 @@ numbers, count words, reverse lines, compute a mean, sum a CSV column, find a
 maximum in JSON, and deduplicate numbers. Each family has eight prompt
 templates and 64 sample inputs. Three quarters of the 2,304 episodes ask for a
 new script. The rest provide a faulty existing script; the agent runs it, uses
-its error or wrong output to choose a fix, and runs the corrected script. Each
-next-action target also has a compact invalid-action recovery example, giving
-14,976 prompt/action rows. The corpus builder executes examples in the same
-tool implementation used at inference. All episodes are synthetic and
-generated locally; no downloaded agent-trace dataset is used.
+its error or wrong output to choose a fix, and runs the corrected script. Faults
+include runtime errors, syntax errors, and wrong-but-running output. Wrong
+output traces include a hidden pass/fail observation like the one produced by
+the optional output checker. Each next-action target also has a compact
+invalid-action recovery example, giving 14,976 prompt/action rows. The corpus
+builder executes examples in the same tool implementation used at inference.
+All episodes are synthetic and generated locally; no downloaded agent-trace
+dataset is used.
 
 The public branch includes the generated corpus at `data/agent_pairs.jsonl`
 and trained prototype checkpoints under `artifacts/agent/`. They use this
@@ -91,11 +94,18 @@ TORCHVULKAN_STRICT=1 uv run --extra vulkan python scripts/evaluate_agent.py \
 
 It generates test inputs absent from the training corpus, checks stdout against
 independent task oracles, and records action validity, parser recoveries,
-repairs, checkpoint hashes, and full traces. Increase `--cases-per-family` for
-more coverage by choosing a new `--manifest` path. The committed expanded
-manifest at `data/agent_eval_manifest_extended.jsonl` contains 84 episodes and
-supports direct checkpoint comparisons. The rollout score, not teacher-forced
-loss by itself, is the main quality signal.
+repairs, checkpoint hashes, and full traces. It keeps the oracle output out of
+the prompt but gives the agent a pass/fail observation when a script exits
+successfully with the wrong output. The repair suite at
+`data/agent_eval_repairs_v2.jsonl` has 184 episodes and tests runtime, syntax,
+and wrong-output faults. Its 203-episode extension at
+`data/agent_eval_repairs_203.jsonl` adds new held-out input values and prompt
+variants. The 84-episode manifest at
+`data/agent_eval_manifest_extended.jsonl` remains a fixed checkpoint
+comparison. Increase `--cases-per-family` for more coverage by choosing a new
+`--manifest` path. The rollout score, not teacher-forced loss by itself, is the
+main quality signal. The current checkpoint scores 64/203 on the larger
+extension; its full traces are in `artifacts/eval/repair-v3-203-rollouts.jsonl`.
 
 Measure the tokenizer separately before spending more generator training:
 
@@ -155,11 +165,15 @@ To continue training an existing generator with the same configuration, add
 The corruption value applies a linearly decreasing replacement rate across
 levels, helping generation tolerate mistakes in earlier codes.
 The checked-in generator received an additional 1,500-step fine-tune at
-corruption 0.3. It scores 29/84 on the larger held-out manifest, compared with
-24/84 for the previous checkpoint. A second training seed showed lower raw
-validity and more false finals, so treat the selected checkpoint as a
-prototype. Keep `--split-seed` fixed when comparing model seeds; it controls
-the train/validation group split independently of `--seed`.
+corruption 0.3 on the expanded repair traces. With the hidden output checker,
+it scores 35/84 and 59/184, compared with 29/84 and 55/184 for the previous
+checkpoint. Both checkpoints had zero *accepted* false finals because the
+checker blocks them; the new checkpoint made 8 rejected false-final attempts
+on the 84-case set and 43 on the 184-case set. The current checkpoint scores
+64/203 with 44 rejected attempts; raw action validity is 49.0%. The previous
+checkpoint made 8 and 186 attempts on the 84- and 184-case sets. Keep
+`--split-seed` fixed when comparing model seeds; it controls the train/validation
+group split independently of `--seed`.
 
 ## Run the coding agent
 
@@ -176,6 +190,11 @@ write/run/revise decisions allowed for one task.
 The optional `--stdin` value is shown to the model as `SAMPLE_STDIN` and is
 limited to 100 UTF-8 bytes. Pass `--initial-script` to give it an existing
 script to run and debug; the source is limited to 160 UTF-8 bytes.
+If you know the expected stdout for the sample input, pass
+`--expected-stdout $'15\n'`. The runtime checks it without showing the value to
+the model and will not accept a final response until the current script passes.
+Without that option, the runtime can only check that the script exits
+successfully.
 
 ## Model overview
 
@@ -188,7 +207,9 @@ script to run and debug; the source is limited to 160 UTF-8 bytes.
   named local tool, appends its observation, and asks the model for its next
   action. It retries invalid actions with runtime feedback, accepts obvious
   near-miss `run_script` and `final` actions, and requires a successful script
-  run before accepting a final response.
+  run before accepting a final response. When an expected output is supplied,
+  it also requires an exact output match and returns only a pass/fail mismatch
+  signal to the model.
 
 The earlier instruction-to-code experiment used
 [`flytech/python-codes-25k`](https://huggingface.co/datasets/flytech/python-codes-25k),

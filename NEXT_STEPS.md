@@ -1,7 +1,7 @@
 # Roadmap: Make This NCM More Agentic
 
 **Status:** working plan for the public `work/ncm-prototype` branch
-**Last updated:** 2026-11-23
+**Last updated:** 2026-11-24
 **Scope:** continue the small Python coding agent in this repository. This is a
 research roadmap, not a claim that the current checkpoint is a general coding
 agent or a reproduction of Stanford's reported models.
@@ -52,6 +52,9 @@ These facts come from the current code, data, checkpoint, and observed runs.
   synthetic episodes across nine short task families. Each next-action target
   has one compact invalid-action recovery example. A quarter of episodes start
   with a faulty script and demonstrate run, observe, repair, rerun, and finish.
+  Repair traces cover runtime errors, syntax errors, and wrong-but-running
+  scripts. Wrong-output traces include a hidden pass/fail observation; expected
+  output values are not included in the model prompt.
 - The tasks cover line and word counts, integer sums and sorting, line reversal,
   means, CSV totals, a JSON maximum, and sorted unique integers.
 - The checkpoints and generated corpus are committed under `artifacts/agent/`
@@ -67,9 +70,12 @@ These facts come from the current code, data, checkpoint, and observed runs.
   after a failed run. Its prompt and output windows are short.
 - The runtime retries invalid actions and accepts narrowly defined near-miss
   forms of `run_script` and `final`. It refuses to accept a final response
-  unless the current script has had a successful run.
-- The runner currently treats exit status zero as a successful run. It does
-  not know whether stdout is the correct answer for an arbitrary user task.
+  unless the current script has passed its available checks.
+- By default, the runner can only check exit status. `--expected-stdout` adds an
+  exact-output check without adding the expected text to the prompt. The
+  evaluator supplies this hidden check and returns only an
+  `expected_output_mismatch` observation when output is wrong. This checks one
+  input at a time; the agent does not yet run a hidden multi-input test suite.
 
 ### Evidence so far
 
@@ -93,15 +99,30 @@ expanded-data checkpoint before fine-tuning also scored 7/28 (46.7% raw
 validity). Fine-tuning that checkpoint for 3,000 steps at corruption 0.5 kept
 the score at 7/28 but raised raw validity to 64.4%.
 
-A 1,500-step fine-tune at corruption 0.30, seed 42 and split seed 42, scores
-10/28 with no false finals. On a separate 84-episode manifest, it scores
-29/84 with one false final; the 0.50 baseline scores 24/84 with one false
-final. Raw valid-action rate is 57.0% versus 55.0% on that larger suite. The
-seed-43 run with the same split scores 10/28 and 27/84, but has one and four
-false finals respectively. This shows seed sensitivity, so the 0.30 seed-42
-checkpoint is the current default, while the repeatability gate
-remains open. The user's exact count-words prompt succeeds through the normal
-CLI, which logs the RX 580 and needs no `sudo`.
+Before adding the output checker, the 0.30-corruption seed-42 checkpoint scored
+10/28 and 29/84, with one accepted false final on the 84-case manifest. A
+controlled seed-43 run scored 10/28 and 27/84 with one and four false finals.
+Those results showed seed sensitivity.
+
+The current default is a 1,500-step continuation from the seed-42 checkpoint,
+trained on the expanded repair traces with seed 42 and split seed 42. On fixed
+manifests with the hidden output checker, it scores 10/28 and 35/84, compared
+with 10/28 and 29/84 for the previous checkpoint. On the 184-episode repair
+suite it scores 59/184, compared with 55/184. The new checkpoint produces 70
+exact outputs on that suite versus 59 for the previous checkpoint. Both have
+zero accepted false finals because the checker blocks them. The new checkpoint
+attempted 43 rejected false finals versus 186 for the old checkpoint on the
+184-episode suite; raw valid-action rates were 49.8% and 43.6%. On the fixed
+84-case set, both made eight rejected false-final attempts; raw valid-action
+rates were 47.1% and 46.7%. This is a measured improvement, but raw action
+validity and task success remain far below the proposed release gates. Its
+203-episode extension scores 64/203, with 75 exact outputs, zero accepted false
+finals, 44 rejected false-final attempts, and 49.0% raw valid-action rate. Full
+traces and training metadata are under `artifacts/eval/repair-v3-*`.
+
+The user's exact count-words prompt previously succeeded through the normal
+CLI, which logs the RX 580 and needs no `sudo`; rerun it after any checkpoint
+promotion.
 
 The failed traces contain near-miss script text such as `sys.stdinnread()` and
 `neet(r)`. On the full 1,520-pair validation split, the existing tokenizer
@@ -179,18 +200,23 @@ have used the RX 580.
 
 ### Milestone 1 — Add an end-to-end rollout evaluator
 
-**Status: implemented; first baseline recorded.**
+**Status: implemented; fixed 28-, 84-, 184-, and 203-episode reports are recorded.**
 
-The baseline manifest is committed at `data/agent_eval_manifest.jsonl`. Corpus
-generation supports `--exclude-manifest` and reserves its cases so later
-checkpoints use the same genuinely unseen inputs.
+The baseline manifest is committed at `data/agent_eval_manifest.jsonl`. The
+expanded baseline is `data/agent_eval_manifest_extended.jsonl`; the
+runtime-, syntax-, and wrong-output repair suite is
+`data/agent_eval_repairs_v2.jsonl`, with a 203-episode extension at
+`data/agent_eval_repairs_203.jsonl`. Corpus generation supports
+`--exclude-manifest` and reserves its cases so later checkpoints use the same
+genuinely unseen inputs.
 
 **Goal:** measure whether an episode actually solves the task, including tool
 use and repair.
 
 `scripts/evaluate_agent.py` runs episodes through the same `run_agent` path as
 the CLI. The evaluator, not the model, holds expected outputs and test cases.
-Expected answers are not put in prompts or training context.
+Expected answers are not put in prompts or training context. The runtime gets
+an exact-output check and returns only a pass/fail mismatch observation.
 
 For each episode, record at least:
 
@@ -212,7 +238,8 @@ Report these metrics separately:
 - Script syntax rate and sandbox execution rate.
 - Exact task success against the oracle.
 - Repair success conditional on a deliberately failing initial script.
-- False-final rate, loop rate, decisions per successful episode, and latency.
+- Accepted false-final rate and rejected false-final attempts, loop rate,
+  decisions per successful episode, and latency.
 - Per-level code accuracy and teacher-forced loss as diagnostic metrics only.
 
 Start with a manageable held-out suite: for example, 10–20 cases per task
@@ -268,6 +295,10 @@ failure above is part of the fixed regression set.
 
 ### Milestone 3 — Improve tool-action reliability
 
+**Status: optional exact-output checking and mismatch feedback are implemented.
+The current 184-episode checkpoint reduces rejected false-final attempts from
+186 to 43, while raw action validity remains 49.8%.**
+
 **Goal:** make the model choose and serialize valid actions without depending
 on runtime typo correction.
 
@@ -292,8 +323,9 @@ Next actions:
 - Detect repeated identical actions and stop or return a clear stuck state
   before wasting the entire decision budget.
 - Keep the current rule that a final answer requires a successful run of the
-  current script. Extend it so a script must also pass the evaluator's tests
-  when tests are available.
+  current script. The optional exact-output check now blocks a wrong result
+  when one expected output is available; add multiple hidden tests and preserve
+  their results as workspace state.
 
 **Done when:** raw action validity is high, parser interventions are rare and
 reported, and the evaluator records zero false finals across a fixed suite.
@@ -330,8 +362,9 @@ run its tests, react to a failing test, and finish only after passing tests.
 
 ### Milestone 5 — Improve the NCM training signal
 
-**Status: diagnostics and codebook-size ablation complete; 0.30 corruption
-selected for the default, repeatability still under investigation.**
+**Status: tokenizer diagnostics and codebook-size ablation complete; the
+0.30-corruption seed-42 recipe remains selected, now fine-tuned on the varied
+repair corpus. Repeatability is still under investigation.**
 `scripts/diagnose_tokenizer.py` reports exact-byte reconstruction after every
 level, codebook usage and entropy, and mismatch examples. On all 1,520
 validation traces, the 256-entry tokenizer improves exact reconstruction from
@@ -429,7 +462,8 @@ results. Adjust them only before looking at the final test scores.
 | Correct output on held-out prompt paraphrases | At least 80% |
 | Repair success after one injected script failure | At least 80% |
 | Raw valid actions before parser recovery | At least 98% |
-| False final responses | 0 in at least 200 episodes |
+| Accepted false finals when oracle checks are supplied | 0 in at least 200 episodes |
+| Rejected false-final attempts | Report the count and reduce it across repeated suites |
 | Sandbox boundary violations | 0 in the reviewed adversarial suite |
 | NCM vs. matched autoregressive baseline | Report both success and end-to-end time; do not cherry-pick one metric |
 
@@ -440,14 +474,13 @@ If a gate is missed, report the miss and keep improving the relevant stage.
 
 In order:
 
-1. Add varied wrong-output and syntax-error repair traces, especially for the
-   mean task, where the expanded evaluation still records false finals.
-2. Improve raw action validity; the selected checkpoint still depends on
-   parser recovery often enough that its raw rate remains low.
-3. Repeat the selected recipe on the fixed 28- and 84-episode manifests with
-   another training seed and fixed split; investigate the observed variance.
-4. Expand the evaluation suite toward 200 episodes and keep false finals at
-   zero before adding workspace tools.
+1. Add multiple hidden inputs per script so one visible sample cannot make a
+   faulty or hard-coded solution look correct.
+2. Improve raw action validity and reduce parser recovery; the current default
+   is still below 50% raw valid actions on the 203-episode suite.
+3. Repeat the repair-aware training recipe with another training seed and the
+   same split, then compare task success and rejected false-final attempts.
+4. Add a repeated-action guard before increasing the decision budget.
 5. Retain the 256-entry tokenizer as an experiment until its matching generator
    improves end-to-end success.
 
@@ -469,6 +502,8 @@ TORCHVULKAN_STRICT=1 uv run --extra vulkan ncm-agent \
 Expected stdout from the generated script is `3`. This wording is a known
 training template; use it as an in-distribution check, not as evidence of
 paraphrase generalization.
+Append `--expected-stdout $'3\n'` if you want the runtime to check that sample
+output. The expected string is not shown to the model.
 
 ### Run the known paraphrase regression
 
@@ -505,6 +540,15 @@ TORCHVULKAN_STRICT=1 uv run --extra vulkan python scripts/evaluate_agent.py \
   --device vulkan \
   --manifest data/agent_eval_manifest.jsonl \
   --output artifacts/eval/rollouts.jsonl
+```
+
+Run the larger repair suite with the same evaluator:
+
+```sh
+TORCHVULKAN_STRICT=1 uv run --extra vulkan python scripts/evaluate_agent.py \
+  --device vulkan \
+  --manifest data/agent_eval_repairs_203.jsonl \
+  --output artifacts/eval/repair-v3-203-rollouts.jsonl
 ```
 
 ## 7. Reference material

@@ -146,6 +146,109 @@ CODE = {
         'import sys;print(*sorted(set(map(int,sys.stdin.read()))),sep="\\n")',
     ),
 }
+
+# Each task gets three repair states: the established failure, a script that
+# runs but returns a wrong answer, and a syntax error. Keeping the first fault
+# preserves the existing evaluation fixture; the extra faults broaden only the
+# training trajectories.
+REPAIR_FAULTS = {
+    "count_lines": [
+        ("runtime_error", CODE["count_lines"][1]),
+        (
+            "wrong_output",
+            "import sys;print(len(sys.stdin.read().splitlines()))",
+        ),
+        (
+            "syntax_error",
+            "import sys;print(sum(bool(x.strip()) for x in sys.stdin.read().splitlines())",
+        ),
+    ],
+    "sum_numbers": [
+        ("runtime_error", CODE["sum_numbers"][1]),
+        (
+            "wrong_output",
+            "import sys;print(sum(map(int,sys.stdin.read().split()))+1)",
+        ),
+        (
+            "syntax_error",
+            "import sys;print(sum(map(int,sys.stdin.read().split()))",
+        ),
+    ],
+    "count_words": [
+        ("runtime_error", CODE["count_words"][1]),
+        (
+            "wrong_output",
+            "import sys;print(len(sys.stdin.read().splitlines()))",
+        ),
+        ("syntax_error", "import sys;print(len(sys.stdin.read().split())"),
+    ],
+    "sort_numbers": [
+        ("runtime_error", CODE["sort_numbers"][1]),
+        (
+            "wrong_output",
+            'import sys;print(*sorted(list(map(int,sys.stdin.read().split()))+[999]),sep="\\n")',
+        ),
+        (
+            "syntax_error",
+            'import sys;print(*sorted(map(int,sys.stdin.read().split()),sep="\\n")',
+        ),
+    ],
+    "reverse_lines": [
+        ("runtime_error", CODE["reverse_lines"][1]),
+        (
+            "wrong_output",
+            'import sys;print("\\n".join(x[::-1]+"!" for x in sys.stdin.read().splitlines()))',
+        ),
+        (
+            "syntax_error",
+            'import sys;print("\\n".join(x[::-1] for x in sys.stdin.read().splitlines())',
+        ),
+    ],
+    "mean_numbers": [
+        ("wrong_output", CODE["mean_numbers"][1]),
+        (
+            "wrong_output",
+            "import sys;v=list(map(float,sys.stdin.read().split()));print(sum(v)/len(v)+0.5)",
+        ),
+        (
+            "syntax_error",
+            "import sys;v=list(map(float,sys.stdin.read().split()));print(sum(v)/len(v)",
+        ),
+    ],
+    "csv_total": [
+        ("runtime_error", CODE["csv_total"][1]),
+        (
+            "wrong_output",
+            "import csv,sys;r=csv.reader(sys.stdin);next(r);print(sum(int(x[1]) for x in r)+1)",
+        ),
+        (
+            "syntax_error",
+            "import csv,sys;r=csv.reader(sys.stdin);next(r);print(sum(int(x[1]) for x in r)",
+        ),
+    ],
+    "json_max": [
+        ("runtime_error", CODE["json_max"][1]),
+        (
+            "wrong_output",
+            'import json,sys;print(max(json.load(sys.stdin)["scores"])+1)',
+        ),
+        (
+            "syntax_error",
+            'import json,sys;print(max(json.load(sys.stdin)["scores"])',
+        ),
+    ],
+    "unique_sorted": [
+        ("runtime_error", CODE["unique_sorted"][1]),
+        (
+            "wrong_output",
+            'import sys;print(*sorted(set(map(int,sys.stdin.read().split())))[:-1],sep="\\n")',
+        ),
+        (
+            "syntax_error",
+            'import sys;print(*sorted(set(map(int,sys.stdin.read().split())),sep="\\n")',
+        ),
+    ],
+}
 OBSERVATION_CACHE: dict[tuple[str, str], dict[str, Any]] = {}
 
 
@@ -231,6 +334,7 @@ def add_episode(
     correct_code: str,
     initial_code: str,
     repair: bool,
+    repair_fault: str,
     prefix_bytes: int,
     seq_len: int,
 ) -> None:
@@ -243,7 +347,14 @@ def add_episode(
             raise ValueError(f"prompt exceeds prefix window in {group}")
         if len(completion.encode("utf-8")) + 1 > seq_len:
             raise ValueError(f"action exceeds output window in {group}: {completion}")
-        pairs.append({"prompt": prompt, "completion": completion, "group": group})
+        pairs.append(
+            {
+                "prompt": prompt,
+                "completion": completion,
+                "group": group,
+                "repair_fault": repair_fault,
+            }
+        )
         if "tool" in action:
             invalid_completion = completion.replace('"tool"', '"toop"', 1)
         else:
@@ -260,7 +371,12 @@ def add_episode(
         if len(retry_prompt.encode("utf-8")) > prefix_bytes:
             raise ValueError(f"retry prompt exceeds prefix window in {group}")
         pairs.append(
-            {"prompt": retry_prompt, "completion": completion, "group": group}
+            {
+                "prompt": retry_prompt,
+                "completion": completion,
+                "group": group,
+                "repair_fault": repair_fault,
+            }
         )
         if "tool" not in action:
             return None
@@ -286,6 +402,29 @@ def add_episode(
         if repair:
             (environment["workdir"] / "main.py").write_text(initial_code, encoding="utf-8")
             first_result = decide(make_tool_action("run_script", {}))
+            if isinstance(first_result, dict) and first_result.get("exit_code") == 0:
+                cache_key = (correct_code, stdin)
+                expected_result = OBSERVATION_CACHE.get(cache_key)
+                if expected_result is None:
+                    script_path = environment["workdir"] / "main.py"
+                    script_path.write_text(correct_code, encoding="utf-8")
+                    expected_result = execute_tool(
+                        "run_script", {}, environment
+                    )
+                    OBSERVATION_CACHE[cache_key] = expected_result
+                    script_path.write_text(initial_code, encoding="utf-8")
+                if (
+                    expected_result.get("exit_code") == 0
+                    and first_result.get("stdout") != expected_result.get("stdout")
+                ):
+                    history.append(
+                        {
+                            "role": "tool:runtime",
+                            "content": compact_json(
+                                {"error": "expected_output_mismatch"}
+                            ),
+                        }
+                    )
             written = decide(make_tool_action("write_script", {"code": correct_code}))
             if not written or written.get("written") is not True:
                 raise RuntimeError(f"failed to write corrected script for {group}")
@@ -331,11 +470,13 @@ def build_dataset(
             task = rng.choice(task_templates)
             sample_index = index % len(case_banks[kind])
             stdin, _ = case_banks[kind][sample_index]
-            correct_code, buggy_code = CODE[kind]
+            correct_code, _ = CODE[kind]
             repair = index % 4 == 0
+            fault_index = (index // 4) % len(REPAIR_FAULTS[kind])
+            repair_fault, faulty_code = REPAIR_FAULTS[kind][fault_index]
             if repair:
                 task += "\nCURRENT_SCRIPT:" + json.dumps(
-                    buggy_code, ensure_ascii=False
+                    faulty_code, ensure_ascii=False
                 )
             task = f"{task}\nSAMPLE_STDIN:{json.dumps(stdin, ensure_ascii=False)}"
             add_episode(
@@ -344,8 +485,9 @@ def build_dataset(
                 task,
                 stdin,
                 correct_code,
-                buggy_code if repair else correct_code,
+                faulty_code if repair else correct_code,
                 repair,
+                repair_fault if repair else "none",
                 prefix_bytes,
                 seq_len,
             )
