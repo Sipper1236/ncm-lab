@@ -141,4 +141,3 @@ traces used above. Its attribution is recorded in `data/SOURCES.md`.
 - [Stanford NCM page](https://scalingintelligence.stanford.edu/pubs/ncm/)
 - [NCM paper](https://arxiv.org/html/2610.14162v1)
 - [Official reference implementation](https://github.com/HazyResearch/ncm)
-- [Local implementation notes](../../.agents/docs/next-concept-modeling-build-guide.md)
