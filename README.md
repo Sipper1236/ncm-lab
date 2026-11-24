@@ -94,11 +94,14 @@ TORCHVULKAN_STRICT=1 uv run --extra vulkan python -m ncm_lab.train \
   --prefix-len 512 \
   --seq-len 256 \
   --generator-width 128 \
-  --generator-layers 2
+  --generator-layers 2 \
+  --corruption 0.5
 ```
 
 To continue training an existing generator with the same configuration, add
 `--resume-generator artifacts/agent/generator.pt`.
+`--corruption 0.5` applies a linearly decreasing corruption rate across levels
+to help generation tolerate mistakes in earlier codes.
 
 ## Run the coding agent
 

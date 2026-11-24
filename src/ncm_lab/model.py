@@ -279,7 +279,13 @@ class NCMGenerator(nn.Module):
             blocks.append(self._input_block(z_hat, level))
             condition_ids = target_ids
             if corruption > 0.0:
-                replace = torch.rand(target_ids.shape, device=device) < corruption
+                max_rate = min(1.0, 2.0 * corruption)
+                rate = (
+                    max_rate * (1.0 - level / (len(self.levels) - 1))
+                    if len(self.levels) > 1
+                    else corruption
+                )
+                replace = torch.rand(target_ids.shape, device=device) < rate
                 random_ids = torch.randint(
                     self.codebooks[level].num_embeddings,
                     target_ids.shape,

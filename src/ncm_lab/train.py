@@ -316,7 +316,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--generator-layers", type=int, default=1)
     parser.add_argument("--heads", type=int, default=4)
     parser.add_argument("--dropout", type=float, default=0.0)
-    parser.add_argument("--corruption", type=float, default=0.0)
+    parser.add_argument(
+        "--corruption",
+        type=float,
+        default=0.0,
+        help="mean code corruption rate; linearly decreases from coarse to fine levels",
+    )
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--log-every", type=int, default=25)
     parser.add_argument("--seed", type=int, default=42)
