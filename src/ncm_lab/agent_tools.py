@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import resource
 import re
 import shutil
 import subprocess
+import tempfile
 from difflib import get_close_matches
 from pathlib import Path
 from typing import Any
@@ -18,6 +20,7 @@ MAX_SCRIPT_BYTES = 4096
 MAX_STDIN_BYTES = 4096
 MAX_STDOUT_CHARS = 80
 MAX_STDERR_CHARS = 100
+MAX_VERIFICATION_CASES = 8
 
 
 def compact_json(value: Any) -> str:
@@ -202,6 +205,32 @@ def _run_in_sandbox(workdir: Path, stdin: str) -> dict[str, Any]:
     }
 
 
+def _run_script_snapshot(source: bytes, stdin: str) -> dict[str, Any]:
+    """Run an immutable copy so a script cannot change between test inputs."""
+    with tempfile.TemporaryDirectory(prefix="ncm-script-run-") as directory:
+        workdir = Path(directory)
+        (workdir / "main.py").write_bytes(source)
+        return _run_in_sandbox(workdir, stdin)
+
+
+def _validate_verification_cases(value: Any) -> list[dict[str, str]] | None:
+    if not isinstance(value, list) or len(value) > MAX_VERIFICATION_CASES:
+        return None
+    cases: list[dict[str, str]] = []
+    for case in value:
+        if (
+            not isinstance(case, dict)
+            or set(case) != {"stdin", "expected_stdout"}
+            or not isinstance(case["stdin"], str)
+            or not isinstance(case["expected_stdout"], str)
+            or len(case["stdin"].encode("utf-8")) > MAX_STDIN_BYTES
+            or len(case["expected_stdout"].encode("utf-8")) > MAX_STDOUT_CHARS
+        ):
+            return None
+        cases.append(case)
+    return cases
+
+
 def execute_tool(
     name: str, arguments: dict[str, Any], environment: dict[str, Any]
 ) -> dict[str, Any]:
@@ -228,4 +257,38 @@ def execute_tool(
         return {"error": "stdin_too_large"}
     if not script_path.is_file():
         return {"error": "script_not_written"}
-    return _run_in_sandbox(workdir, stdin)
+    try:
+        source = script_path.read_bytes()
+    except OSError:
+        return {"error": "script_unreadable"}
+    result = _run_script_snapshot(source, stdin)
+
+    verification_cases = environment.get("verification_cases", [])
+    if verification_cases:
+        cases = _validate_verification_cases(verification_cases)
+        if cases is None:
+            return {"error": "invalid_verification_cases"}
+        expected_stdout = environment.get("expected_stdout")
+        sample_matches = (
+            expected_stdout is None or result.get("stdout") == expected_stdout
+        )
+        if result.get("exit_code") == 0 and sample_matches:
+            cache = environment.setdefault("verification_cache", {})
+            if not isinstance(cache, dict):
+                cache = {}
+                environment["verification_cache"] = cache
+            digest = hashlib.sha256(source).hexdigest()
+            verification = cache.get(digest)
+            if not isinstance(verification, dict):
+                passed = True
+                for case in cases:
+                    hidden_result = _run_script_snapshot(source, case["stdin"])
+                    if (
+                        hidden_result.get("exit_code") != 0
+                        or hidden_result.get("stdout") != case["expected_stdout"]
+                    ):
+                        passed = False
+                verification = {"passed": passed, "case_count": len(cases)}
+                cache[digest] = verification
+            result["verification"] = verification
+    return result

@@ -48,7 +48,7 @@ These facts come from the current code, data, checkpoint, and observed runs.
 - `--corruption 0.5` currently means a linearly decreasing per-level
   replacement rate from 1.0 at the coarsest level to 0.0 at the finest. The
   target labels remain clean.
-- The current generated corpus contains 14,976 prompt/action rows from 2,304
+- The checked-in original corpus contains 14,976 prompt/action rows from 2,304
   synthetic episodes across nine short task families. Each next-action target
   has one compact invalid-action recovery example. A quarter of episodes start
   with a faulty script and demonstrate run, observe, repair, rerun, and finish.
@@ -57,8 +57,11 @@ These facts come from the current code, data, checkpoint, and observed runs.
   output values are not included in the model prompt.
 - The tasks cover line and word counts, integer sums and sorting, line reversal,
   means, CSV totals, a JSON maximum, and sorted unique integers.
-- The checkpoints and generated corpus are committed under `artifacts/agent/`
-  and `data/agent_pairs.jsonl`.
+- `data/agent_pairs.jsonl` is the corpus used for the checked-in seed-43
+  generator. The corpus builder now writes
+  `data/agent_pairs_varied_lines_v2.jsonl`, where count-lines tasks cover one to
+  six nonblank lines and retain blanks for the wrong-output repair. The matched
+  seed-43 candidate trained on that variant was not promoted.
 
 ### Agent and tools
 
@@ -71,11 +74,12 @@ These facts come from the current code, data, checkpoint, and observed runs.
 - The runtime retries invalid actions and accepts narrowly defined near-miss
   forms of `run_script` and `final`. It refuses to accept a final response
   unless the current script has passed its available checks.
-- By default, the runner can only check exit status. `--expected-stdout` adds an
-  exact-output check without adding the expected text to the prompt. The
-  evaluator supplies this hidden check and returns only an
-  `expected_output_mismatch` observation when output is wrong. This checks one
-  input at a time; the agent does not yet run a hidden multi-input test suite.
+- `--expected-stdout` adds an exact-output check without adding the expected
+  text to the prompt. The evaluator now attaches two fixed hidden inputs to
+  each multi-input episode. After the visible sample passes, the runner checks
+  immutable copies of the current script against both cases and returns only
+  aggregate pass/fail feedback. Hidden inputs and outputs stay out of the model
+  prompt and tool observations.
 
 ### Evidence so far
 
@@ -124,6 +128,21 @@ selection signal here. Seed sensitivity remains an open issue.
 The default seed-43 checkpoint passes the user's exact count-words prompt with
 and without `--expected-stdout`, logs the RX 580, and needs no `sudo`. Training
 metadata and rollout traces are under `artifacts/eval/repair-v3-*`.
+
+On the fixed multi-input 203-case suite, seed 43 scores 73/203 with 77 exact
+visible outputs, 58.6% raw action validity, and 26 rejected false-final
+attempts. All 77 episodes that passed the visible check passed both hidden
+inputs; 126 episodes never reached hidden verification. A third matched seed
+(44) scores 83/203, 36/84, and 11/28, above seed 43's 73/203, 34/84, and
+10/28. Its raw validity falls to 48.0% on the multi-input suite and it makes
+74 rejected false-final attempts, so seed 43 remains the default. The seed-44
+model and reports are retained for comparison.
+
+A seed-43 candidate trained on the varied-line corpus with a shorter
+count-lines script scores 76/203 on the multi-input suite, but only 28/84 on
+the fixed comparison versus 34/84 for the default. It was not promoted. The
+line-count family remains a failure for that candidate; the data change alone
+did not solve its malformed-script outputs.
 
 The failed traces contain near-miss script text such as `sys.stdinnread()` and
 `neet(r)`. On the full 1,520-pair validation split, the existing tokenizer
@@ -203,13 +222,15 @@ have used the RX 580.
 
 ### Milestone 1 — Add an end-to-end rollout evaluator
 
-**Status: implemented; fixed 28-, 84-, 184-, and 203-episode reports are recorded.**
+**Status: implemented; fixed 28-, 84-, 184-, 203-episode, and multi-input
+203-episode reports are recorded.**
 
 The baseline manifest is committed at `data/agent_eval_manifest.jsonl`. The
 expanded baseline is `data/agent_eval_manifest_extended.jsonl`; the
 runtime-, syntax-, and wrong-output repair suite is
 `data/agent_eval_repairs_v2.jsonl`, with a 203-episode extension at
-`data/agent_eval_repairs_203.jsonl`. Corpus generation supports
+`data/agent_eval_repairs_203.jsonl`. The two-hidden-input variant is
+`data/agent_eval_repairs_203_multitest.jsonl`. Corpus generation supports
 `--exclude-manifest` and reserves its cases so later checkpoints use the same
 genuinely unseen inputs.
 
@@ -298,9 +319,10 @@ failure above is part of the fixed regression set.
 
 ### Milestone 3 — Improve tool-action reliability
 
-**Status: optional exact-output checking and mismatch feedback are implemented.
-The current 184-episode checkpoint reduces rejected false-final attempts from
-43 to 24 relative to seed 42, with 59.3% raw action validity.**
+**Status: exact-output checking, hidden multi-input verification, and mismatch
+feedback are implemented. On the current fixed 203-case suite, all visible
+successes also pass the two hidden checks; 126 episodes remain unchecked after
+visible failures. Raw valid-action rate is 58.6%.**
 
 **Goal:** make the model choose and serialize valid actions without depending
 on runtime typo correction.
@@ -326,9 +348,9 @@ Next actions:
 - Detect repeated identical actions and stop or return a clear stuck state
   before wasting the entire decision budget.
 - Keep the current rule that a final answer requires a successful run of the
-  current script. The optional exact-output check now blocks a wrong result
-  when one expected output is available; add multiple hidden tests and preserve
-  their results as workspace state.
+  current script. The evaluator now checks two additional inputs and preserves
+  aggregate verification results in each rollout record. Expand the report to
+  distinguish each visible and hidden verification event.
 
 **Done when:** raw action validity is high, parser interventions are rare and
 reported, and the evaluator records zero false finals across a fixed suite.
@@ -365,9 +387,10 @@ run its tests, react to a failing test, and finish only after passing tests.
 
 ### Milestone 5 — Improve the NCM training signal
 
-**Status: tokenizer diagnostics and codebook-size ablation complete; the
-0.30-corruption seed-43 recipe is selected after a matched-split rollout
-comparison. Seed sensitivity remains under investigation.**
+**Status: tokenizer diagnostics and codebook-size ablation complete. Three
+matched seeds and a varied-line data candidate were evaluated; seed 43 remains
+selected because seed 44's higher task success came with much lower raw action
+validity and more rejected false finals.**
 `scripts/diagnose_tokenizer.py` reports exact-byte reconstruction after every
 level, codebook usage and entropy, and mismatch examples. On all 1,520
 validation traces, the 256-entry tokenizer improves exact reconstruction from
@@ -477,13 +500,13 @@ If a gate is missed, report the miss and keep improving the relevant stage.
 
 In order:
 
-1. Add multiple hidden inputs per script so one visible sample cannot make a
-   faulty or hard-coded solution look correct.
-2. Improve raw action validity and reduce parser recovery; the current default
-   is still below 60% raw valid actions on the 203-episode suite.
-3. Repeat the repair-aware training recipe with a third seed and the same
-   split; the first two seeds still differ in task success and validation loss.
-4. Add a repeated-action guard before increasing the decision budget.
+1. Improve raw action validity and reduce parser recovery; it remains below 60%
+   on the multi-input 203-episode suite for the selected checkpoint.
+2. Add a repeated-action guard before increasing the decision budget.
+3. Improve line-count and CSV traces, which remain near-zero success families;
+   the first varied-line candidate did not improve count-lines success.
+4. Repeat seed comparisons after an action-format change; the third seed
+   improved task score but produced less valid actions.
 5. Retain the 256-entry tokenizer as an experiment until its matching generator
    improves end-to-end success.
 

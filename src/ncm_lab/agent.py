@@ -68,8 +68,15 @@ def run_agent(
     history: list[dict[str, str]] = []
     last_run_succeeded = False
     last_run_result: dict[str, Any] | None = None
+    verification_cases = getattr(args, "verification_cases", [])
     with tempfile.TemporaryDirectory(prefix="ncm-agent-") as directory:
-        environment = {"workdir": Path(directory), "stdin": args.stdin}
+        environment = {
+            "workdir": Path(directory),
+            "stdin": args.stdin,
+            "expected_stdout": expected_stdout,
+            "verification_cases": verification_cases,
+            "verification_cache": {},
+        }
         task = args.task
         if args.initial_script:
             (environment["workdir"] / "main.py").write_text(
@@ -140,17 +147,23 @@ def run_agent(
                 )
             if "final" in action:
                 if not last_run_succeeded:
-                    mismatch = (
+                    sample_mismatch = (
                         expected_stdout is not None
                         and last_run_result is not None
                         and last_run_result.get("exit_code") == 0
                         and last_run_result.get("stdout") != expected_stdout
                     )
-                    reason = (
-                        "expected_output_mismatch"
-                        if mismatch
-                        else "no_successful_current_script_run"
+                    verification = (
+                        last_run_result.get("verification", {})
+                        if last_run_result is not None
+                        else {}
                     )
+                    hidden_mismatch = verification.get("passed") is False
+                    reason = "no_successful_current_script_run"
+                    if sample_mismatch:
+                        reason = "expected_output_mismatch"
+                    elif hidden_mismatch:
+                        reason = "hidden_test_mismatch"
                     print("final rejected: current script has not passed available checks")
                     if trace is not None:
                         trace.append(
@@ -215,6 +228,22 @@ def run_agent(
                                 "step": index + 1,
                                 "type": "verification_failure",
                                 "reason": "expected_output_mismatch",
+                            }
+                        )
+                if (
+                    last_run_succeeded
+                    and result.get("verification", {}).get("passed") is False
+                ):
+                    last_run_succeeded = False
+                    runtime_observation = {"error": "hidden_test_mismatch"}
+                    print(f"step {index + 1} verification: hidden test mismatch")
+                    if trace is not None:
+                        trace.append(
+                            {
+                                "step": index + 1,
+                                "type": "verification_failure",
+                                "reason": "hidden_test_mismatch",
+                                "case_count": result["verification"].get("case_count"),
                             }
                         )
                 if not last_run_succeeded:

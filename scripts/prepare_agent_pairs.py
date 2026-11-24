@@ -110,7 +110,7 @@ TASKS = {
 
 CODE = {
     "count_lines": (
-        "import sys;print(sum(bool(x.strip()) for x in sys.stdin.read().splitlines()))",
+        "import sys;print(sum(1 for x in sys.stdin if x.strip()))",
         "import sys;print(sum(bool(x.strip()) for x in sys.stdin.read().splitlines))",
     ),
     "sum_numbers": (
@@ -254,9 +254,14 @@ OBSERVATION_CACHE: dict[tuple[str, str], dict[str, Any]] = {}
 
 def make_case(kind: str, index: int, rng: random.Random) -> tuple[str, str]:
     if kind == "count_lines":
-        words = ["alpha", "", "  ", "beta", "gamma", ""]
-        rng.shuffle(words)
-        return "\n".join(words), "\n"
+        words = [
+            rng.choice(["alpha", "beta", "gamma", "delta", "epsilon", "zeta"])
+            for _ in range(rng.randint(1, 6))
+        ]
+        lines = [*words, *("" for _ in range(rng.randint(1, 3)))]
+        lines.extend(" " * rng.randint(1, 3) for _ in range(rng.randint(0, 2)))
+        rng.shuffle(lines)
+        return "\n".join(lines), "\n"
     if kind == "sum_numbers":
         values = [rng.randint(-25, 90) for _ in range(5)]
         return " ".join(map(str, values)), "\n"
@@ -499,7 +504,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Generate synthetic Python coding-agent tool-use trajectories for NCM."
     )
-    parser.add_argument("--output", default="data/agent_pairs.jsonl")
+    parser.add_argument(
+        "--output", default="data/agent_pairs_varied_lines_v2.jsonl"
+    )
     parser.add_argument("--episodes-per-task", type=int, default=256)
     parser.add_argument("--prefix-bytes", type=int, default=510)
     parser.add_argument("--seq-len", type=int, default=256)

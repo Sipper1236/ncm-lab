@@ -41,6 +41,7 @@ Create synthetic, multi-step Python coding traces:
 
 ```sh
 uv run python scripts/prepare_agent_pairs.py \
+  --output data/agent_pairs_varied_lines_v2.jsonl \
   --episodes-per-task 256 \
   --cases-per-task 64 \
   --prefix-bytes 510 \
@@ -56,15 +57,19 @@ new script. The rest provide a faulty existing script; the agent runs it, uses
 its error or wrong output to choose a fix, and runs the corrected script. Faults
 include runtime errors, syntax errors, and wrong-but-running output. Wrong
 output traces include a hidden pass/fail observation like the one produced by
-the optional output checker. Each next-action target also has a compact
-invalid-action recovery example, giving 14,976 prompt/action rows. The corpus
-builder executes examples in the same tool implementation used at inference.
-All episodes are synthetic and generated locally; no downloaded agent-trace
-dataset is used.
+the optional output checker. Count-lines inputs include one to six nonblank
+lines, with blank lines retained so the wrong-output repair remains observable.
+The short canonical solution is
+`import sys;print(sum(1 for x in sys.stdin if x.strip()))`. Each next-action
+target also has a compact invalid-action recovery example, giving 14,976
+prompt/action rows. The corpus builder executes examples in the same tool
+implementation used at inference. All episodes are synthetic and generated
+locally; no downloaded agent-trace dataset is used.
 
-The public branch includes the generated corpus at `data/agent_pairs.jsonl`
-and trained prototype checkpoints under `artifacts/agent/`. They use this
-project's synthetic traces and are independent of Stanford's checkpoints.
+`data/agent_pairs.jsonl` is the original corpus used to train the checked-in
+seed-43 generator. The generator now writes the varied-line corpus to
+`data/agent_pairs_varied_lines_v2.jsonl`; that later candidate remains an
+experiment. The checkpoint is independent of Stanford's checkpoints.
 
 Each JSONL record trains one next action. The trainer keeps all episodes using
 the same sample stdin in one split, so validation examples use inputs absent
@@ -104,8 +109,36 @@ variants. The 84-episode manifest at
 `data/agent_eval_manifest_extended.jsonl` remains a fixed checkpoint
 comparison. Increase `--cases-per-family` for more coverage by choosing a new
 `--manifest` path. The rollout score, not teacher-forced loss by itself, is the
-main quality signal. The current checkpoint scores 72/203 on the larger
-extension; its full traces are in `artifacts/eval/repair-v3-203-rollouts.jsonl`.
+main quality signal. The current checkpoint scores 72/203 on the original
+larger extension; its full traces are in
+`artifacts/eval/repair-v3-203-rollouts.jsonl`.
+
+The multi-input suite adds two fixed verification inputs to each of the 203
+episodes. Generate or refresh it with:
+
+```sh
+uv run python scripts/prepare_hidden_cases.py \
+  --manifest data/agent_eval_repairs_203.jsonl \
+  --data data/agent_pairs_varied_lines_v2.jsonl \
+  --output data/agent_eval_repairs_203_multitest.jsonl \
+  --hidden-cases 2 \
+  --seed 20261126
+```
+
+Evaluate the checked-in seed-43 checkpoint on that suite with:
+
+```sh
+TORCHVULKAN_STRICT=1 uv run --extra vulkan python scripts/evaluate_agent.py \
+  --device vulkan \
+  --data data/agent_pairs_varied_lines_v2.jsonl \
+  --manifest data/agent_eval_repairs_203_multitest.jsonl \
+  --output artifacts/eval/repair-v3-multitest-seed43-rollouts.jsonl
+```
+
+The visible sample stays in the prompt. Hidden inputs and expected outputs do
+not; after the visible sample passes, the runner checks immutable copies of the
+same script on each hidden input and returns only an aggregate pass/fail result.
+Episodes without a successful visible run are reported as unchecked.
 
 Measure the tokenizer separately before spending more generator training:
 
@@ -127,7 +160,7 @@ Train the multiscale residual VQ tokenizer:
 ```sh
 TORCHVULKAN_STRICT=1 uv run --extra vulkan python -m ncm_lab.train \
   --stage tokenizer \
-  --data data/agent_pairs.jsonl \
+  --data data/agent_pairs_varied_lines_v2.jsonl \
   --output artifacts/agent \
   --device vulkan \
   --steps 3000 \
@@ -144,7 +177,7 @@ Freeze that tokenizer and train the prompt-conditioned generator:
 ```sh
 TORCHVULKAN_STRICT=1 uv run --extra vulkan python -m ncm_lab.train \
   --stage generator \
-  --data data/agent_pairs.jsonl \
+  --data data/agent_pairs_varied_lines_v2.jsonl \
   --output artifacts/agent \
   --tokenizer artifacts/agent/tokenizer.pt \
   --device vulkan \
@@ -164,18 +197,27 @@ To continue training an existing generator with the same configuration, add
 `--resume-generator artifacts/agent/generator.pt`.
 The corruption value applies a linearly decreasing replacement rate across
 levels, helping generation tolerate mistakes in earlier codes.
-The checked-in generator received an additional 1,500-step fine-tune at
-corruption 0.3 on the expanded repair traces with seed 43 and split seed 42.
-On the 203-case suite it scores 72/203, compared with 64/203 for the matched
-seed-42 run; raw action validity is 58.7% vs 49.0%, with 26 vs 44 rejected
-false-final attempts. On the shared 184 repair episodes it scores 64/184 vs
-59/184. On the fixed 84-case set, seed 42 scores one more task (35/84 vs
-34/84), while seed 43 has higher raw validity (60.7% vs 47.1%) and fewer
-rejected false-final attempts (2 vs 8). Both checkpoints have zero *accepted*
-false finals because the checker blocks them. Seed 43 has higher validation
-loss (0.1448 vs 0.0611), so the rollout results—not teacher-forced loss—led to
-its selection. Keep `--split-seed` fixed when comparing model seeds; it
-controls the train/validation group split independently of `--seed`.
+The checked-in generator received a 1,500-step repair-aware continuation with
+seed 43 and split seed 42. On the original single-input 203-case suite it
+scores 72/203, compared with 64/203 for seed 42; on the shared 184 repair
+episodes it scores 64/184 vs 59/184. Seed 43 is one task behind on the fixed
+84-case set (34/84 vs 35/84), but has higher raw validity and fewer rejected
+false-final attempts. Both have zero accepted false finals because the
+checker blocks them.
+
+On the new multi-input 203-case suite, seed 43 scores 73/203, with 77 exact
+visible outputs and 58.6% raw valid actions. Each of those 77 visible successes
+also passed both hidden inputs; 126 episodes were unchecked. A matched seed-44
+run scored 83/203, 36/84, and 11/28, versus seed 43's 73/203, 34/84, and
+10/28. Seed 44's raw action validity was much lower (48.0% vs 58.6% on the
+multi-input suite), with 74 vs 26 rejected false-final attempts. Seed 43 stays
+the default for cleaner action generation and fewer false-final attempts.
+
+A seed-43 candidate trained on varied line-count targets and a shorter
+canonical script scored 76/203 on the multi-input suite, but fell to 28/84 on
+the fixed comparison versus 34/84 for the default. It was not promoted. Keep
+`--split-seed` fixed when comparing model seeds; it controls the train/validation
+group split independently of `--seed`.
 
 ## Run the coding agent
 

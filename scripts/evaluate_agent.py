@@ -202,6 +202,31 @@ def load_or_create_manifest(
             )
         if row.get("expected_stdout") != expected_stdout(family, stdin):
             raise ValueError(f"Incorrect oracle output in evaluation manifest: {row}")
+        verification_cases = row.get("verification_cases", [])
+        if (
+            not isinstance(verification_cases, list)
+            or len(verification_cases) > 8
+        ):
+            raise ValueError(f"Invalid hidden verification cases in {path}: {row}")
+        for hidden_case in verification_cases:
+            if (
+                not isinstance(hidden_case, dict)
+                or set(hidden_case) != {"stdin", "expected_stdout"}
+                or not isinstance(hidden_case["stdin"], str)
+                or not isinstance(hidden_case["expected_stdout"], str)
+            ):
+                raise ValueError(f"Invalid hidden verification case in {path}: {row}")
+            hidden_stdin = hidden_case["stdin"]
+            if len(hidden_stdin.encode("utf-8")) > 4096:
+                raise ValueError(f"Hidden input is too large in {path}: {row}")
+            if len(hidden_case["expected_stdout"].encode("utf-8")) > 80:
+                raise ValueError(f"Hidden oracle output is too large in {path}: {row}")
+            if hidden_stdin == stdin or hidden_stdin in training_inputs.get(
+                family, set()
+            ):
+                raise ValueError(f"Hidden input is not independent in {path}: {row}")
+            if hidden_case["expected_stdout"] != expected_stdout(family, hidden_stdin):
+                raise ValueError(f"Incorrect hidden oracle output in {path}: {row}")
     return rows
 
 
@@ -273,6 +298,7 @@ def evaluate_episode(
     expected: str,
     args: argparse.Namespace,
     initial_script: str = "",
+    verification_cases: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     from argparse import Namespace
 
@@ -283,6 +309,7 @@ def evaluate_episode(
         task=task,
         stdin=stdin,
         expected_stdout=expected,
+        verification_cases=verification_cases or [],
         initial_script=initial_script,
         device=args.device,
         max_steps=args.max_steps,
@@ -310,6 +337,15 @@ def evaluate_episode(
     stdout = result.get("stdout") if isinstance(result, dict) else None
     exit_code = result.get("exit_code") if isinstance(result, dict) else None
     exact = exit_code == 0 and stdout == expected
+    hidden_case_count = len(verification_cases or [])
+    hidden_verification = (
+        result.get("verification") if isinstance(result, dict) else None
+    )
+    hidden_test_passed: bool | None = None
+    hidden_test_cases_checked = 0
+    if hidden_case_count and isinstance(hidden_verification, dict):
+        hidden_test_passed = hidden_verification.get("passed") is True
+        hidden_test_cases_checked = int(hidden_verification.get("case_count", 0))
     actions = [event for event in trace if event.get("type") == "action"]
     invalid_actions = [event for event in trace if event.get("type") == "invalid_action"]
     parser_recoveries = [
@@ -321,7 +357,8 @@ def evaluate_episode(
     )
     rejected_false_final_attempts = sum(
         event.get("type") == "final_rejected"
-        and event.get("reason") == "expected_output_mismatch"
+        and event.get("reason")
+        in {"expected_output_mismatch", "hidden_test_mismatch"}
         for event in trace
     )
     verification_failures = sum(
@@ -337,10 +374,15 @@ def evaluate_episode(
         "actual_stdout": stdout,
         "last_exit_code": exit_code,
         "exact_output": exact,
+        "hidden_test_case_count": hidden_case_count,
+        "hidden_test_cases_checked": hidden_test_cases_checked,
+        "hidden_test_passed": hidden_test_passed,
         "final_accepted": final_accepted,
         "rejected_false_final_attempts": rejected_false_final_attempts,
         "verification_failures": verification_failures,
-        "task_success": exact and final_accepted,
+        "task_success": exact
+        and final_accepted
+        and (not hidden_case_count or hidden_test_passed is True),
         "decision_count": len(actions) + len(invalid_actions),
         "tool_call_count": sum("tool" in event.get("action", {}) for event in actions),
         "invalid_action_count": len(invalid_actions),
@@ -379,6 +421,7 @@ def main() -> None:
                 expected=case["expected_stdout"],
                 args=args,
                 initial_script=case.get("initial_script", ""),
+                verification_cases=case.get("verification_cases", []),
             )
         )
         print(f"evaluated {case['family']} {case['variant']} ({index}/{len(manifest)})")
@@ -400,7 +443,9 @@ def main() -> None:
         ),
         "tokenizer_sha256": file_sha256(Path(args.tokenizer)),
         "generator_sha256": file_sha256(Path(args.generator)),
+        "data_path": str(Path(args.data)),
         "data_sha256": file_sha256(Path(args.data)) if Path(args.data).is_file() else None,
+        "manifest_path": str(manifest_path),
         "manifest_sha256": file_sha256(manifest_path),
         "episodes": len(episodes),
     }
@@ -433,6 +478,26 @@ def main() -> None:
         ),
         "verification_failures": sum(
             item["verification_failures"] for item in episodes
+        ),
+        "hidden_test_episodes": sum(
+            item["hidden_test_case_count"] > 0 for item in episodes
+        ),
+        "hidden_test_episodes_checked": sum(
+            item["hidden_test_cases_checked"] > 0 for item in episodes
+        ),
+        "hidden_test_passes": sum(
+            item["hidden_test_passed"] is True for item in episodes
+        ),
+        "hidden_test_failures": sum(
+            item["hidden_test_passed"] is False for item in episodes
+        ),
+        "hidden_test_unchecked": sum(
+            item["hidden_test_case_count"] > 0
+            and item["hidden_test_passed"] is None
+            for item in episodes
+        ),
+        "hidden_test_cases_checked": sum(
+            item["hidden_test_cases_checked"] for item in episodes
         ),
         "model_outputs": model_outputs,
         "raw_valid_action_rate": round(
