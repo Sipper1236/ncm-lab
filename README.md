@@ -46,6 +46,10 @@ The corpus builder executes examples in the same tool implementation used at
 inference. All episodes are synthetic and generated locally; no downloaded
 agent-trace dataset is used.
 
+The public branch includes the generated corpus at `data/agent_pairs.jsonl`
+and trained prototype checkpoints under `artifacts/agent/`. They use this
+project's synthetic traces and are independent of Stanford's checkpoints.
+
 Each JSONL record trains one next action. The trainer keeps all episodes using
 the same sample stdin in one split, so validation examples use inputs absent
 from training. Actions use a small JSON protocol and only these tools:
@@ -102,6 +106,8 @@ To continue training an existing generator with the same configuration, add
 `--resume-generator artifacts/agent/generator.pt`.
 `--corruption 0.5` applies a linearly decreasing corruption rate across levels
 to help generation tolerate mistakes in earlier codes.
+The checked-in generator received additional fine-tuning beyond this
+from-scratch baseline command.
 
 ## Run the coding agent
 
@@ -128,7 +134,9 @@ script to run and debug; the source is limited to 160 UTF-8 bytes.
   through levels sequentially.
 - Each agent turn generates one JSON action. The runtime executes only the
   named local tool, appends its observation, and asks the model for its next
-  action.
+  action. It retries invalid actions with runtime feedback, accepts obvious
+  near-miss `run_script` and `final` actions, and requires a successful script
+  run before accepting a final response.
 
 The earlier instruction-to-code experiment used
 [`flytech/python-codes-25k`](https://huggingface.co/datasets/flytech/python-codes-25k),
