@@ -71,6 +71,19 @@ seed-43 generator. The generator now writes the varied-line corpus to
 `data/agent_pairs_varied_lines_v2.jsonl`; that later candidate remains an
 experiment. The checkpoint is independent of Stanford's checkpoints.
 
+To make a separate corpus with recovery examples for duplicate actions, run:
+
+```sh
+uv run python scripts/augment_repeat_recovery.py \
+  --input data/agent_pairs.jsonl \
+  --output data/agent_pairs_repeat_recovery_v1.jsonl \
+  --max-bytes 510
+```
+
+This preserves the source rows and adds examples where the previous action is
+repeated and the runtime returns `repeated_action`. The resulting candidate is
+an experiment; it does not replace the selected checkpoint.
+
 Each JSONL record trains one next action. The trainer keeps all episodes using
 the same sample stdin in one split, so validation examples use inputs absent
 from training. Actions use a small JSON protocol and only these tools:
@@ -218,6 +231,17 @@ canonical script scored 76/203 on the multi-input suite, but fell to 28/84 on
 the fixed comparison versus 34/84 for the default. It was not promoted. Keep
 `--split-seed` fixed when comparing model seeds; it controls the train/validation
 group split independently of `--seed`.
+
+The repeated-action recovery corpus adds 4,237 examples to the original 14,976.
+Its matched seed-43 candidate reduced repeat-triggered stops from 81 to 35 and
+raised episodes with a different valid action after repeat feedback from 12 to
+32. Exact visible outputs rose from 77 to 80, but task success stayed at 73/203.
+Raw valid-action rate was 54.75%, slightly below the guarded default's 54.88%,
+and rejected false-final attempts rose from 10 to 21, so it was not promoted.
+The candidate training and rollout details are in
+[`repeat-recovery-v1-training.json`](artifacts/eval/repeat-recovery-v1-training.json)
+and
+[`repeat-recovery-v1-multitest203.jsonl`](artifacts/eval/repeat-recovery-v1-multitest203.jsonl).
 
 ## Run the coding agent
 

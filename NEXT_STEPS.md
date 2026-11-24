@@ -345,8 +345,9 @@ Next actions:
   silently rewrite script contents.
 - Track recent tool state explicitly: script written, script hash, last run
   status, and whether a write happened after that run.
-- Teach the model to recover from duplicate-action feedback; the runtime guard
-  is measured on the fixed suite and stops after the next duplicate.
+- A 4,237-row repeat-recovery augmentation cut repeat-triggered stops from 81
+  to 35 but did not improve 203-episode task success, so its candidate was not
+  promoted. Continue prioritizing raw action validity and script quality.
 - Keep the current rule that a final answer requires a successful run of the
   current script. The evaluator now checks two additional inputs and preserves
   aggregate verification results in each rollout record. Expand the report to
@@ -510,9 +511,9 @@ In order:
 
 1. Improve raw action validity and reduce parser recovery; it is 54.88% with
    the guard on the multi-input 203-episode suite for the selected checkpoint.
-2. Improve recovery after duplicate-action feedback before increasing the
-   decision budget; only 12 of the 102 episodes with repeats later produced a
-   different valid action.
+2. Improve write-script JSON validity while preserving free-form code; the
+   selected checkpoint still produces malformed code envelopes and is below
+   the 60% raw-validity mark.
 3. Improve line-count and CSV traces, which remain near-zero success families;
    the first varied-line candidate did not improve count-lines success.
 4. Repeat seed comparisons after an action-format change; the third seed
