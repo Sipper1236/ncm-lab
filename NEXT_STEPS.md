@@ -101,28 +101,29 @@ the score at 7/28 but raised raw validity to 64.4%.
 
 Before adding the output checker, the 0.30-corruption seed-42 checkpoint scored
 10/28 and 29/84, with one accepted false final on the 84-case manifest. A
-controlled seed-43 run scored 10/28 and 27/84 with one and four false finals.
-Those results showed seed sensitivity.
+controlled seed-43 run on that earlier corpus scored 10/28 and 27/84. Those
+results showed seed sensitivity.
 
-The current default is a 1,500-step continuation from the seed-42 checkpoint,
-trained on the expanded repair traces with seed 42 and split seed 42. On fixed
-manifests with the hidden output checker, it scores 10/28 and 35/84, compared
-with 10/28 and 29/84 for the previous checkpoint. On the 184-episode repair
-suite it scores 59/184, compared with 55/184. The new checkpoint produces 70
-exact outputs on that suite versus 59 for the previous checkpoint. Both have
-zero accepted false finals because the checker blocks them. The new checkpoint
-attempted 43 rejected false finals versus 186 for the old checkpoint on the
-184-episode suite; raw valid-action rates were 49.8% and 43.6%. On the fixed
-84-case set, both made eight rejected false-final attempts; raw valid-action
-rates were 47.1% and 46.7%. This is a measured improvement, but raw action
-validity and task success remain far below the proposed release gates. Its
-203-episode extension scores 64/203, with 75 exact outputs, zero accepted false
-finals, 44 rejected false-final attempts, and 49.0% raw valid-action rate. Full
-traces and training metadata are under `artifacts/eval/repair-v3-*`.
+The current default is a 1,500-step continuation from the same starting
+checkpoint, trained on the expanded repair traces with seed 43 and split seed
+42. On the fixed 28-case set it ties seed 42 at 10/28; both have 11 exact
+outputs, while raw validity is 57.8% vs 45.0%. On the fixed 84-case set, seed
+42 scores one more task (35/84 vs 34/84), but seed 43 has higher raw validity
+(60.7% vs 47.1%) and fewer rejected false-final attempts (2 vs 8).
 
-The user's exact count-words prompt previously succeeded through the normal
-CLI, which logs the RX 580 and needs no `sudo`; rerun it after any checkpoint
-promotion.
+On the 184 shared repair episodes, seed 43 scores 64/184 vs 59/184 for seed
+42, with 69 vs 70 exact outputs, 24 vs 43 rejected false-final attempts, and
+59.3% vs 49.8% raw action validity. Mean episode times are 0.886s vs 0.870s.
+On the 203-episode extension, seed 43 scores 72/203 vs 64/203, with 77 vs 75
+exact outputs, 26 vs 44 rejected attempts, and 58.7% vs 49.0% raw validity.
+Mean episode times are 0.875s vs 0.884s. Both seeds have zero accepted false
+finals because the checker blocks mismatching output. Seed 43's validation loss
+is higher (0.1448 vs 0.0611), which again makes teacher-forced loss a weak
+selection signal here. Seed sensitivity remains an open issue.
+
+The default seed-43 checkpoint passes the user's exact count-words prompt with
+and without `--expected-stdout`, logs the RX 580, and needs no `sudo`. Training
+metadata and rollout traces are under `artifacts/eval/repair-v3-*`.
 
 The failed traces contain near-miss script text such as `sys.stdinnread()` and
 `neet(r)`. On the full 1,520-pair validation split, the existing tokenizer
@@ -137,10 +138,12 @@ reconstruction improvement.
 
 A 0.15-corruption fine-tune of the 64-entry generator scored 9/28 task
 successes, with 10 exact outputs, 53.4% raw action validity, and two false
-finals. The 0.30 corruption setting is selected for the current default based
-on higher exact success and no false-final increase on the expanded manifest.
-The second seed was trained with `--split-seed 42`, which holds the split fixed
-independently of `--seed`.
+finals. The repair-aware 0.30 runs used the same training data and split seed
+42. Seed 43 is selected for higher task success and raw validity on the 184- and
+203-episode suites, with fewer rejected false-final attempts; seed 42 remains
+one task ahead on the fixed 84-case suite. The selected seed has higher
+teacher-forced validation loss, reinforcing that rollout evidence is the
+decision metric.
 
 The earlier generator checkpoint recorded validation loss 0.0041; the expanded
 data fine-tune recorded 0.0525. These used different data splits, so the losses
@@ -297,7 +300,7 @@ failure above is part of the fixed regression set.
 
 **Status: optional exact-output checking and mismatch feedback are implemented.
 The current 184-episode checkpoint reduces rejected false-final attempts from
-186 to 43, while raw action validity remains 49.8%.**
+43 to 24 relative to seed 42, with 59.3% raw action validity.**
 
 **Goal:** make the model choose and serialize valid actions without depending
 on runtime typo correction.
@@ -363,8 +366,8 @@ run its tests, react to a failing test, and finish only after passing tests.
 ### Milestone 5 — Improve the NCM training signal
 
 **Status: tokenizer diagnostics and codebook-size ablation complete; the
-0.30-corruption seed-42 recipe remains selected, now fine-tuned on the varied
-repair corpus. Repeatability is still under investigation.**
+0.30-corruption seed-43 recipe is selected after a matched-split rollout
+comparison. Seed sensitivity remains under investigation.**
 `scripts/diagnose_tokenizer.py` reports exact-byte reconstruction after every
 level, codebook usage and entropy, and mismatch examples. On all 1,520
 validation traces, the 256-entry tokenizer improves exact reconstruction from
@@ -477,9 +480,9 @@ In order:
 1. Add multiple hidden inputs per script so one visible sample cannot make a
    faulty or hard-coded solution look correct.
 2. Improve raw action validity and reduce parser recovery; the current default
-   is still below 50% raw valid actions on the 203-episode suite.
-3. Repeat the repair-aware training recipe with another training seed and the
-   same split, then compare task success and rejected false-final attempts.
+   is still below 60% raw valid actions on the 203-episode suite.
+3. Repeat the repair-aware training recipe with a third seed and the same
+   split; the first two seeds still differ in task success and validation loss.
 4. Add a repeated-action guard before increasing the decision budget.
 5. Retain the 256-entry tokenizer as an experiment until its matching generator
    improves end-to-end success.

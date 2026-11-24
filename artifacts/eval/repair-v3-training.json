@@ -1,6 +1,30 @@
 {
-  "experiment": "repair-v3",
-  "description": "1,500-step generator continuation trained on repair traces with hidden expected-output mismatch feedback",
+  "experiment": "repair-v3-seed43",
+  "description": "1,500-step generator continuation trained on repair traces with hidden expected-output mismatch feedback; selected as the current default after matched-seed rollouts.",
+  "base_checkpoint_source_commit": "c07b8fd",
+  "base_generator_sha256": "1a0180a7ea48a49149bee720e8193a6d89e9dd07207e1666486f791e687a3ef4",
+  "base_data_sha256": "b3f6a451e840d025b85b5ad3fce383d451a47d1b714468909f46b5742a6280fa",
+  "data_sha256": "6ffa06515537222170fd016047544305b255bcab251818e54815b572ca2d82aa",
+  "tokenizer_sha256": "6d398bd6fea95ac5ba52348d4e081ac48b3018e0134b08bde67bfb8b1109b59f",
+  "seed42_comparison_generator_sha256": "27cea0c9e8a8335b25d966a4867a499aab1e5fbe787b022707153cf90598a8b7",
+  "promoted_generator_sha256": "dbf2b140b055ec5584ceeb6c7dbca719e9a42d76b5665862c8712ebb88967ef8",
+  "generator_config": {
+    "prefix_len": 512,
+    "width": 128,
+    "layers": 2,
+    "heads": 4
+  },
+  "training": {
+    "steps": 1500,
+    "batch_size": 4,
+    "corruption": 0.3,
+    "seed": 43,
+    "split_seed": 42,
+    "validation_pairs": 1520,
+    "reported_validation_loss": 0.1448,
+    "optimizer_state": "restarted; only generator weights were resumed"
+  },
+  "selected_device": "AMD Radeon RX 580 2048SP (RADV POLARIS10)",
   "training_command": [
     "TORCHVULKAN_STRICT=1",
     "uv",
@@ -15,7 +39,7 @@
     "--data",
     "data/agent_pairs.jsonl",
     "--output",
-    "artifacts/eval/repair-v3-candidate",
+    "artifacts/eval/repair-v3-seed43",
     "--tokenizer",
     "artifacts/agent/tokenizer.pt",
     "--device",
@@ -37,66 +61,76 @@
     "--corruption",
     "0.3",
     "--seed",
-    "42",
+    "43",
     "--split-seed",
     "42",
     "--resume-generator",
-    "artifacts/agent/generator.pt"
+    "/tmp/ncm-generator-before-repair-v3.pt"
   ],
-  "data_sha256": "6ffa06515537222170fd016047544305b255bcab251818e54815b572ca2d82aa",
-  "tokenizer_sha256": "6d398bd6fea95ac5ba52348d4e081ac48b3018e0134b08bde67bfb8b1109b59f",
-  "base_generator_sha256": "1a0180a7ea48a49149bee720e8193a6d89e9dd07207e1666486f791e687a3ef4",
-  "promoted_generator_sha256": "27cea0c9e8a8335b25d966a4867a499aab1e5fbe787b022707153cf90598a8b7",
-  "generator_config": {
-    "prefix_len": 512,
-    "width": 128,
-    "layers": 2,
-    "heads": 4
-  },
-  "training": {
-    "steps": 1500,
-    "batch_size": 4,
-    "corruption": 0.3,
-    "seed": 42,
-    "split_seed": 42,
-    "validation_pairs": 1520,
-    "reported_validation_loss": 0.0611,
-    "optimizer_state": "restarted; only generator weights were resumed"
-  },
-  "selected_device": "AMD Radeon RX 580 2048SP (RADV POLARIS10)",
-  "evaluation": {
-    "repair_manifest_episodes": 184,
-    "previous_checkpoint": {
-      "task_successes": 55,
-      "exact_outputs": 59,
-      "rejected_false_final_attempts": 186,
-      "raw_valid_action_rate": 0.4364
+  "seed_comparison": {
+    "seed42": {
+      "validation_loss": 0.0611,
+      "fixed_28": {
+        "task_successes": 10,
+        "exact_outputs": 11,
+        "rejected_false_final_attempts": 1,
+        "raw_valid_action_rate": 0.45
+      },
+      "fixed_84": {
+        "task_successes": 35,
+        "exact_outputs": 36,
+        "rejected_false_final_attempts": 8,
+        "raw_valid_action_rate": 0.4712
+      },
+      "repair_184": {
+        "task_successes": 59,
+        "exact_outputs": 70,
+        "rejected_false_final_attempts": 43,
+        "raw_valid_action_rate": 0.4984,
+        "mean_episode_seconds": 0.87
+      },
+      "expanded_203": {
+        "task_successes": 64,
+        "exact_outputs": 75,
+        "rejected_false_final_attempts": 44,
+        "raw_valid_action_rate": 0.4901,
+        "mean_episode_seconds": 0.884
+      }
     },
-    "promoted_checkpoint": {
-      "task_successes": 59,
-      "exact_outputs": 70,
-      "rejected_false_final_attempts": 43,
-      "raw_valid_action_rate": 0.4984,
-      "accepted_false_finals": 0
+    "seed43": {
+      "validation_loss": 0.1448,
+      "fixed_28": {
+        "task_successes": 10,
+        "exact_outputs": 11,
+        "rejected_false_final_attempts": 2,
+        "raw_valid_action_rate": 0.5778
+      },
+      "fixed_84": {
+        "task_successes": 34,
+        "exact_outputs": 35,
+        "rejected_false_final_attempts": 2,
+        "raw_valid_action_rate": 0.6069
+      },
+      "repair_184": {
+        "task_successes": 64,
+        "exact_outputs": 69,
+        "rejected_false_final_attempts": 24,
+        "raw_valid_action_rate": 0.5926,
+        "mean_episode_seconds": 0.886
+      },
+      "expanded_203": {
+        "task_successes": 72,
+        "exact_outputs": 77,
+        "rejected_false_final_attempts": 26,
+        "raw_valid_action_rate": 0.5872,
+        "mean_episode_seconds": 0.875,
+        "verification_failures": 263
+      }
     },
-    "fixed_28_task_successes": {
-      "previous": 10,
-      "promoted": 10
-    },
-    "fixed_84_task_successes": {
-      "previous": 29,
-      "promoted": 35
-    },
-    "expanded_203": {
-      "episodes": 203,
-      "task_successes": 64,
-      "exact_outputs": 75,
-      "accepted_false_finals": 0,
-      "rejected_false_final_attempts": 44,
-      "verification_failures": 73,
-      "raw_valid_action_rate": 0.4901
+    "accepted_false_finals": {
+      "seed42": 0,
+      "seed43": 0,
+      "note": "The optional output checker blocks mismatching finals."
     }
-  },
-  "base_checkpoint_source_commit": "c07b8fd",
-  "base_data_sha256": "b3f6a451e840d025b85b5ad3fce383d451a47d1b714468909f46b5742a6280fa"
+  }
 }

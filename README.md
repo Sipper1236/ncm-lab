@@ -104,7 +104,7 @@ variants. The 84-episode manifest at
 `data/agent_eval_manifest_extended.jsonl` remains a fixed checkpoint
 comparison. Increase `--cases-per-family` for more coverage by choosing a new
 `--manifest` path. The rollout score, not teacher-forced loss by itself, is the
-main quality signal. The current checkpoint scores 64/203 on the larger
+main quality signal. The current checkpoint scores 72/203 on the larger
 extension; its full traces are in `artifacts/eval/repair-v3-203-rollouts.jsonl`.
 
 Measure the tokenizer separately before spending more generator training:
@@ -156,7 +156,7 @@ TORCHVULKAN_STRICT=1 uv run --extra vulkan python -m ncm_lab.train \
   --generator-width 128 \
   --generator-layers 2 \
   --corruption 0.3 \
-  --seed 42 \
+  --seed 43 \
   --split-seed 42
 ```
 
@@ -165,15 +165,17 @@ To continue training an existing generator with the same configuration, add
 The corruption value applies a linearly decreasing replacement rate across
 levels, helping generation tolerate mistakes in earlier codes.
 The checked-in generator received an additional 1,500-step fine-tune at
-corruption 0.3 on the expanded repair traces. With the hidden output checker,
-it scores 35/84 and 59/184, compared with 29/84 and 55/184 for the previous
-checkpoint. Both checkpoints had zero *accepted* false finals because the
-checker blocks them; the new checkpoint made 8 rejected false-final attempts
-on the 84-case set and 43 on the 184-case set. The current checkpoint scores
-64/203 with 44 rejected attempts; raw action validity is 49.0%. The previous
-checkpoint made 8 and 186 attempts on the 84- and 184-case sets. Keep
-`--split-seed` fixed when comparing model seeds; it controls the train/validation
-group split independently of `--seed`.
+corruption 0.3 on the expanded repair traces with seed 43 and split seed 42.
+On the 203-case suite it scores 72/203, compared with 64/203 for the matched
+seed-42 run; raw action validity is 58.7% vs 49.0%, with 26 vs 44 rejected
+false-final attempts. On the shared 184 repair episodes it scores 64/184 vs
+59/184. On the fixed 84-case set, seed 42 scores one more task (35/84 vs
+34/84), while seed 43 has higher raw validity (60.7% vs 47.1%) and fewer
+rejected false-final attempts (2 vs 8). Both checkpoints have zero *accepted*
+false finals because the checker blocks them. Seed 43 has higher validation
+loss (0.1448 vs 0.0611), so the rollout results—not teacher-forced loss—led to
+its selection. Keep `--split-seed` fixed when comparing model seeds; it
+controls the train/validation group split independently of `--seed`.
 
 ## Run the coding agent
 
