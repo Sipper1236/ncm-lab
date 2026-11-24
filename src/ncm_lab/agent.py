@@ -92,7 +92,16 @@ def run_agent(args: argparse.Namespace) -> str | None:
             except ValueError as error:
                 print(f"step {index + 1}: invalid action: {error}")
                 print(f"model output: {raw!r}")
-                return None
+                history.append({"role": "assistant", "content": raw})
+                history.append(
+                    {
+                        "role": "tool:runtime",
+                        "content": compact_json(
+                            {"error": "invalid_action", "detail": str(error)}
+                        ),
+                    }
+                )
+                continue
 
             print(f"step {index + 1} action: {compact_json(action)}")
             if "final" in action:
