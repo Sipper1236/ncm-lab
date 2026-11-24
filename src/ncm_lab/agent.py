@@ -41,6 +41,10 @@ def run_agent(args: argparse.Namespace) -> str | None:
     if len(args.initial_script.encode("utf-8")) > 160:
         raise SystemExit("--initial-script is limited to 160 UTF-8 bytes")
     device = choose_device(args.device)
+    if device.type == "vulkan":
+        import torchvulkan
+
+        print(f"vulkan_device={torchvulkan.get_device_name()}")
     tokenizer, _ = load_tokenizer(args.tokenizer, device)
     payload = torch.load(args.generator, map_location=device, weights_only=True)
     generator = NCMGenerator(tokenizer, **payload["generator_config"])

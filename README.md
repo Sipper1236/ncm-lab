@@ -10,6 +10,10 @@ This is a small research prototype, not a reproduction of Stanford's reported
 model sizes, data, or results. The current byte-level model has a short context
 and output window, so it is intended for compact scripts and tasks.
 
+For an evidence-based plan to improve this prototype, see
+[NEXT_STEPS.md](NEXT_STEPS.md). It separates demonstrated behavior from the
+current gaps and lists the next evaluation and training milestones.
+
 ## Setup
 
 Python 3.12 and `uv` are used here. The AMD RX 580 uses RADV Vulkan; the
@@ -21,6 +25,11 @@ is an optional dependency. Its source and operator/fallback notes are in the
 cd ~/Projects/ncm-lab
 uv sync --python 3.12 --extra vulkan
 ```
+
+Run `uv` and `ncm-agent` as your normal user; do not use `sudo`. The agent
+prints the selected Vulkan device at startup when `--device vulkan` is used.
+On the RX 580 setup here, Intel HD Graphics 4600 is skipped and Vulkan device
+0 is the AMD Radeon RX 580 2048SP.
 
 `--device auto` tries CUDA, MPS, Vulkan, then CPU. To require the RX 580 and
 fail on unsupported Vulkan operations instead of silently falling back, set
