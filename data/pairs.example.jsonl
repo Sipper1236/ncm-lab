@@ -1,0 +1,2 @@
+{"prompt":"Write a Python function that adds two integers.","completion":"def add(a, b):\n    return a + b"}
+{"prompt":"Write a Python function that returns the largest number in a list, or None for an empty list.","completion":"def largest(values):\n    if not values:\n        return None\n    return max(values)"}

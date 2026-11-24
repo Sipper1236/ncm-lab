@@ -1,0 +1,23 @@
+# Dataset sources
+
+## Synthetic coding-agent traces
+
+`scripts/prepare_agent_pairs.py` creates local synthetic episodes for nine
+short Python script tasks. Most episodes write and run a new script; the rest
+start with an existing faulty script that the agent runs, repairs, and reruns.
+The expected actions and observations are derived by running the scripts
+through the project's isolated Python tool. No external agent-trace corpus or
+model-generated teacher outputs are used.
+
+## Earlier instruction-to-code corpus
+
+The starter prompt/code corpus is derived from
+[flytech/python-codes-25k](https://huggingface.co/datasets/flytech/python-codes-25k).
+
+- The Hugging Face dataset card lists the MIT license and fields for
+  instruction, optional input, and Python output.
+- `scripts/prepare_code_pairs.py` extracts fenced Python or plain code, keeps
+  unique syntax-valid examples within the selected byte length, and adds a
+  “Return Python code only” suffix.
+- Preserve upstream attribution and license terms if distributing derived
+  data or model artifacts.

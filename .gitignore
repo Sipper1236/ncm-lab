@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+src/*.egg-info/
+*.py[cod]
+.pytest_cache/
+artifacts/
+data/*.txt
+data/*.jsonl
+data/agent_environment.json
+data/raw/
+!data/README.md
+!data/pairs.example.jsonl
