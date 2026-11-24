@@ -84,6 +84,18 @@ This preserves the source rows and adds examples where the previous action is
 repeated and the runtime returns `repeated_action`. The resulting candidate is
 an experiment; it does not replace the selected checkpoint.
 
+To create retry examples for malformed `write_script` JSON, run:
+
+```sh
+uv run python scripts/augment_invalid_action_recovery.py \
+  --input data/agent_pairs.jsonl \
+  --output data/agent_pairs_malformed_code_recovery_v1.jsonl \
+  --max-bytes 510
+```
+
+This adds examples where the `code` key has a malformed separator and the
+runtime returns `invalid_action`.
+
 Each JSONL record trains one next action. The trainer keeps all episodes using
 the same sample stdin in one split, so validation examples use inputs absent
 from training. Actions use a small JSON protocol and only these tools:
@@ -242,6 +254,16 @@ The candidate training and rollout details are in
 [`repeat-recovery-v1-training.json`](artifacts/eval/repeat-recovery-v1-training.json)
 and
 [`repeat-recovery-v1-multitest203.jsonl`](artifacts/eval/repeat-recovery-v1-multitest203.jsonl).
+
+A second candidate trained with 1,981 malformed-code retry examples scored
+84/203 on the multi-input suite and passed all 88 hidden-check runs. It scored
+32/84 on the fixed comparison versus 33/84 for the guarded default, with lower
+raw validity on both suites; count-words fell from 18/27 to 14/27. It was not
+promoted, though it passed the exact `red blue green` word-count regression.
+The details are in
+[`malformed-code-recovery-v1-training.json`](artifacts/eval/malformed-code-recovery-v1-training.json),
+[`malformed-code-recovery-v1-multitest203.jsonl`](artifacts/eval/malformed-code-recovery-v1-multitest203.jsonl),
+and [`malformed-code-recovery-v1-fixed84.jsonl`](artifacts/eval/malformed-code-recovery-v1-fixed84.jsonl).
 
 ## Run the coding agent
 

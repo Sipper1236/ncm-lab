@@ -348,6 +348,9 @@ Next actions:
 - A 4,237-row repeat-recovery augmentation cut repeat-triggered stops from 81
   to 35 but did not improve 203-episode task success, so its candidate was not
   promoted. Continue prioritizing raw action validity and script quality.
+- A 1,981-row malformed-code retry candidate reached 84/203 but scored 32/84
+  on the fixed comparison and lowered raw validity; it also reduced count-words
+  success. Keep it unpromoted and address the action format itself.
 - Keep the current rule that a final answer requires a successful run of the
   current script. The evaluator now checks two additional inputs and preserves
   aggregate verification results in each rollout record. Expand the report to
@@ -511,9 +514,9 @@ In order:
 
 1. Improve raw action validity and reduce parser recovery; it is 54.88% with
    the guard on the multi-input 203-episode suite for the selected checkpoint.
-2. Improve write-script JSON validity while preserving free-form code; the
-   selected checkpoint still produces malformed code envelopes and is below
-   the 60% raw-validity mark.
+2. Explore a constrained outer action envelope while preserving free-form
+   code; malformed-code retry data improved the large suite but lowered the
+   fixed-84 score and raw validity, so that candidate stays unpromoted.
 3. Improve line-count and CSV traces, which remain near-zero success families;
    the first varied-line candidate did not improve count-lines success.
 4. Repeat seed comparisons after an action-format change; the third seed
